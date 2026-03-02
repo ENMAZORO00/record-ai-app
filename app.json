@@ -1,0 +1,11 @@
+{
+  "expo": {
+    "name": "Record AI",
+    "slug": "notes-app",
+    "version": "1.0.0",
+    "scheme": "notes",
+    "splash": {
+      "backgroundColor": "#fdfbff"
+    }
+  }
+}
