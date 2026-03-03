@@ -4,8 +4,19 @@
     "slug": "notes-app",
     "version": "1.0.0",
     "scheme": "notes",
+    "icon": "./assets/logo.png",
     "splash": {
-      "backgroundColor": "#fdfbff"
-    }
+      "image": "./assets/logo.png",
+      "backgroundColor": "#fdfbff",
+      "resizeMode": "contain"
+    },
+    "plugins": [
+      [
+        "expo-av",
+        {
+          "microphonePermission": "Allow Record AI to access your microphone for recording conversations."
+        }
+      ]
+    ]
   }
 }

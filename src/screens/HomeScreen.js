@@ -13,6 +13,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
 import { homeColors } from '../theme/homeColors';
 import AssistantView from './home/AssistantView';
@@ -37,14 +38,16 @@ function getInitials(name) {
 }
 
 export default function HomeScreen() {
+  const navigation = useNavigation();
   const { user, signOut } = useAuth();
   const insets = useSafeAreaInsets();
   const [activeTab, setActiveTab] = useState('assistant');
   const [dropdownVisible, setDropdownVisible] = useState(false);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     setDropdownVisible(false);
-    signOut();
+    await signOut();
+    navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
   };
 
   const renderContent = () => {

@@ -8,6 +8,7 @@ import {
   Platform,
   TouchableOpacity,
   SafeAreaView,
+  Image,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -18,6 +19,7 @@ export default function AuthLayout({
   title,
   subtitle,
   icon,
+  showLogo,
   children,
   footer,
   showBack,
@@ -79,7 +81,15 @@ export default function AuthLayout({
             )}
 
             <View style={styles.card}>
-              {icon && (
+              {showLogo ? (
+                <View style={styles.logoWrap}>
+                  <Image
+                    source={require('../../assets/logo.png')}
+                    style={styles.logo}
+                    resizeMode="contain"
+                  />
+                </View>
+              ) : icon ? (
                 <View style={styles.iconWrap}>
                   <LinearGradient
                     colors={[authColors.gradientStart, authColors.gradientEnd]}
@@ -90,7 +100,7 @@ export default function AuthLayout({
                     <Ionicons name={icon} size={36} color="#ffffff" />
                   </LinearGradient>
                 </View>
-              )}
+              ) : null}
               <Text style={styles.title}>{title}</Text>
               {subtitle ? (
                 <Text style={styles.subtitle}>{subtitle}</Text>
@@ -150,6 +160,14 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.08,
     shadowRadius: 16,
     elevation: 8,
+  },
+  logoWrap: {
+    alignSelf: 'center',
+    marginBottom: 20,
+  },
+  logo: {
+    width: 640,
+    height: 210,
   },
   iconWrap: {
     alignSelf: 'center',

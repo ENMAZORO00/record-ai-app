@@ -3,7 +3,6 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import AuthLayout from '../components/AuthLayout';
 import AuthInput from '../components/AuthInput';
 import AuthButton from '../components/AuthButton';
-import FeatureBar from '../components/FeatureBar';
 import { authApi } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { authColors } from '../theme/authColors';
@@ -56,12 +55,9 @@ export default function LoginScreen({ navigation }) {
   return (
     <AuthLayout
       title="Welcome Back"
-      subtitle="Sign in to continue your journey"
-      icon="log-in-outline"
+      showLogo
       footer={footer}
     >
-      <FeatureBar text="Sign in to access transcript search, action items & AI insights" />
-
       <AuthInput
         label="Email Address"
         value={email}

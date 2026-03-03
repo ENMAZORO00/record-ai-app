@@ -43,7 +43,7 @@ export default function ForgotPasswordScreen({ navigation }) {
     <AuthLayout
       title="Forgot password?"
       subtitle="Enter the email linked to your account. We'll send you a verification code to reset your password."
-      icon="key-outline"
+      showLogo
       showBack
       onBack={() => navigation.replace('Login')}
       footer={footer}

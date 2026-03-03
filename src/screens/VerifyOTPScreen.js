@@ -71,7 +71,7 @@ export default function VerifyOTPScreen({ navigation, route }) {
     <AuthLayout
       title="Verify Your Email"
       subtitle={`Code sent to ${email}`}
-      icon="mail-outline"
+      showLogo
       showBack
       onBack={() => navigation.goBack()}
       footer={footer}

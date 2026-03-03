@@ -68,7 +68,7 @@ export default function SignUpScreen({ navigation }) {
     <AuthLayout
       title="Join Record AI"
       subtitle="Create your account to start remembering your daily conversations"
-      icon="person-add-outline"
+      showLogo
       showClose
       onClose={() => navigation.replace('Login')}
       footer={footer}

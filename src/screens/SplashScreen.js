@@ -7,6 +7,7 @@ import {
   Dimensions,
   SafeAreaView,
   Platform,
+  Image,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
@@ -19,8 +20,6 @@ const { width, height } = Dimensions.get('window');
 const colors = {
   bgStart: '#fdfbff',
   bgEnd: '#f5f0ff',
-  iconGradientStart: '#a78bfa',
-  iconGradientEnd: '#ec4899',
   textPrimary: '#5b21b6',
   textSecondary: '#7c3aed',
   tagline: '#6b7280',
@@ -162,23 +161,14 @@ export default function SplashScreen({ navigation }) {
             },
           ]}
         >
-          {/* Main icon */}
-          <View style={styles.iconWrapper}>
-            <LinearGradient
-              colors={[colors.iconGradientStart, colors.iconGradientEnd]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.iconGradient}
-            >
-              <Ionicons name="star" size={48} color="#ffffff" />
-            </LinearGradient>
+          {/* Main logo - same as LoginScreen */}
+          <View style={styles.logoWrap}>
+            <Image
+              source={require('../../assets/logo.png')}
+              style={styles.logo}
+              resizeMode="contain"
+            />
           </View>
-
-          {/* App name */}
-          <Text style={styles.brand}>
-            <Text style={styles.brandPart1}>Record</Text>
-            <Text style={styles.brandPart2}> AI</Text>
-          </Text>
 
           {/* Tagline */}
           <Text style={styles.tagline}>
@@ -251,23 +241,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 32,
   },
-  iconWrapper: {
-    shadowColor: '#8b5cf6',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.25,
-    shadowRadius: 16,
-    elevation: 12,
+  logoWrap: {
+    alignSelf: 'center',
     marginBottom: 20,
   },
-  iconGradient: {
-    width: 88,
-    height: 88,
-    borderRadius: 22,
-    justifyContent: 'center',
-    alignItems: 'center',
-    ...(Platform.OS === 'android' && {
-      overflow: 'hidden',
-    }),
+  logo: {
+    width: 640,
+    height: 210,
   },
   brand: {
     fontSize: 36,
