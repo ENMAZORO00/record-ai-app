@@ -9,9 +9,10 @@ import {
   KeyboardAvoidingView,
   ScrollView,
   Alert,
+  Animated,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { BlurView } from 'expo-blur';
 import {
   requestPermissionsAsync,
   setAudioModeAsync,
@@ -20,7 +21,6 @@ import {
   isRecordingSupported,
 } from '../../services/audioRecorder';
 import { homeColors } from '../../theme/homeColors';
-import AssistantButton from '../../components/AssistantButton';
 
 const RecordingState = {
   IDLE: 'idle',
@@ -36,6 +36,7 @@ export default function AssistantView() {
   const [permissionGranted, setPermissionGranted] = useState(false);
   const [permissionLoading, setPermissionLoading] = useState(false);
   const durationRef = React.useRef(null);
+  const pulseAnim = React.useRef(new Animated.Value(1)).current;
 
   const requestPermissions = useCallback(async () => {
     setPermissionLoading(true);
@@ -144,6 +145,27 @@ export default function AssistantView() {
     };
   }, []);
 
+  // Pulse animation for recording indicator
+  useEffect(() => {
+    if (recordingState !== RecordingState.RECORDING) return;
+    const pulse = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, {
+          toValue: 1.3,
+          duration: 600,
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 0.9,
+          duration: 600,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    pulse.start();
+    return () => pulse.stop();
+  }, [recordingState]);
+
   const formatDuration = (seconds) => {
     const m = Math.floor(seconds / 60);
     const s = seconds % 60;
@@ -162,115 +184,106 @@ export default function AssistantView() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.centerSection}>
-          <Text style={styles.greeting}>Record a conversation</Text>
-          <Text style={styles.hint}>
-            Type a prompt or start recording to capture audio
-          </Text>
+          <Text style={styles.greeting}>Ask Memory Assistant</Text>
 
-          {/* ChatGPT-style search bar */}
+          {/* ChatGPT-style input bar */}
           <View style={styles.searchWrapper}>
-            <BlurView intensity={50} tint="light" style={styles.searchBar}>
-              <Ionicons
-                name="search"
-                size={20}
-                color={homeColors.textMuted}
-                style={styles.searchIcon}
-              />
+            <View style={styles.searchBar}>
               <TextInput
                 style={styles.searchInput}
-                placeholder="Ask anything or start recording..."
+                placeholder="Search for information..."
                 placeholderTextColor={homeColors.textMuted}
                 value={searchQuery}
                 onChangeText={setSearchQuery}
-                returnKeyType="search"
+                returnKeyType="send"
+                multiline
+                maxLength={4000}
                 editable={recordingState === RecordingState.IDLE}
+                underlineColorAndroid="transparent"
               />
-              {searchQuery.length > 0 && (
+              <View style={styles.searchActions}>
                 <TouchableOpacity
-                  onPress={() => setSearchQuery('')}
-                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  style={[styles.sendBtn, (searchQuery.trim().length > 0) && styles.sendBtnActive]}
+                  disabled={searchQuery.trim().length === 0}
+                  activeOpacity={0.7}
                 >
                   <Ionicons
-                    name="close-circle"
+                    name="arrow-up"
                     size={20}
-                    color={homeColors.textMuted}
+                    color={searchQuery.trim().length > 0 ? '#fff' : homeColors.textMuted}
                   />
                 </TouchableOpacity>
-              )}
-            </BlurView>
+              </View>
+            </View>
           </View>
 
-          {/* Recording duration indicator */}
-          {(recordingState === RecordingState.RECORDING ||
-            recordingState === RecordingState.PAUSED) && (
-            <View style={styles.durationRow}>
-              <View
-                style={[
-                  styles.recIndicator,
-                  recordingState === RecordingState.PAUSED && styles.recPaused,
-                ]}
-              />
-              <Text style={styles.durationText}>
-                {formatDuration(recordingDuration)}
-              </Text>
-              {recordingState === RecordingState.PAUSED && (
-                <Text style={styles.pausedLabel}>Paused</Text>
-              )}
+          {/* Recording controls */}
+          {recordingState === RecordingState.IDLE ? (
+            <TouchableOpacity
+              style={[styles.startRecordingBtn, !isRecordingSupported && styles.startRecordingDisabled]}
+              onPress={startRecording}
+              disabled={!isRecordingSupported || permissionLoading}
+              activeOpacity={0.85}
+            >
+              <View style={styles.startRecordingInner}>
+                {permissionLoading ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Ionicons name="mic" size={32} color="#fff" />
+                )}
+                <Text style={styles.startRecordingLabel}>Start Recording</Text>
+              </View>
+            </TouchableOpacity>
+          ) : (
+            <View style={styles.recordingCard}>
+              <View style={styles.recordingHeader}>
+                <Animated.View
+                  style={[
+                    styles.recIndicatorOuter,
+                    recordingState === RecordingState.PAUSED && styles.recPaused,
+                    recordingState === RecordingState.RECORDING ? { transform: [{ scale: pulseAnim }] } : null,
+                  ]}
+                >
+                  <View style={styles.recIndicator} />
+                </Animated.View>
+                <Text style={styles.recordingDuration}>{formatDuration(recordingDuration)}</Text>
+                {recordingState === RecordingState.PAUSED && (
+                  <View style={styles.pausedBadge}>
+                    <Text style={styles.pausedBadgeText}>Paused</Text>
+                  </View>
+                )}
+              </View>
+              <View style={styles.recordingActions}>
+                {recordingState === RecordingState.RECORDING ? (
+                  <TouchableOpacity
+                    style={styles.recordingActionBtn}
+                    onPress={pauseRecording}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons name="pause" size={24} color={homeColors.textPrimary} />
+                    <Text style={styles.recordingActionLabel}>Pause</Text>
+                  </TouchableOpacity>
+                ) : (
+                  <TouchableOpacity
+                    style={styles.recordingActionBtn}
+                    onPress={resumeRecording}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons name="play" size={24} color={homeColors.textPrimary} />
+                    <Text style={styles.recordingActionLabel}>Resume</Text>
+                  </TouchableOpacity>
+                )}
+                <TouchableOpacity
+                  style={[styles.recordingActionBtn, styles.stopBtn]}
+                  onPress={stopRecording}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.stopIcon} />
+                  <Text style={[styles.recordingActionLabel, styles.stopLabel]}>Stop</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           )}
-
-          {/* Web: recording not supported */}
-          {!isRecordingSupported && (
-            <Text style={styles.webHint}>
-              Audio recording is available on iOS and Android. Open the app on your phone to record conversations.
-            </Text>
-          )}
-
-          {/* Recording control buttons */}
-          <View style={styles.controlsRow}>
-            {recordingState === RecordingState.IDLE && (
-              <AssistantButton
-                variant="start"
-                onPress={startRecording}
-                loading={permissionLoading}
-                label="Start Recording"
-                size="large"
-                disabled={!isRecordingSupported}
-              />
-            )}
-
-            {recordingState === RecordingState.RECORDING && (
-              <>
-                <AssistantButton
-                  variant="pause"
-                  onPress={pauseRecording}
-                  label="Pause"
-                />
-                <AssistantButton
-                  variant="stop"
-                  onPress={stopRecording}
-                  label="End"
-                  active
-                />
-              </>
-            )}
-
-            {recordingState === RecordingState.PAUSED && (
-              <>
-                <AssistantButton
-                  variant="start"
-                  onPress={resumeRecording}
-                  label="Resume"
-                />
-                <AssistantButton
-                  variant="stop"
-                  onPress={stopRecording}
-                  label="End Recording"
-                  active
-                />
-              </>
-            )}
-          </View>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -297,12 +310,6 @@ const styles = StyleSheet.create({
     fontSize: 26,
     fontWeight: '700',
     color: homeColors.textPrimary,
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  hint: {
-    fontSize: 15,
-    color: homeColors.textSecondary,
     marginBottom: 28,
     textAlign: 'center',
   },
@@ -312,73 +319,176 @@ const styles = StyleSheet.create({
   },
   searchBar: {
     flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 18,
-    paddingVertical: 16,
-    borderRadius: 24,
+    alignItems: 'flex-end',
+    minHeight: 52,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    paddingRight: 8,
+    borderRadius: 26,
+    backgroundColor: '#ffffff',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.6)',
-    overflow: 'hidden',
+    borderColor: 'rgba(0, 0, 0, 0.08)',
     ...Platform.select({
       ios: {
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.04,
-        shadowRadius: 12,
+        shadowOpacity: 0.06,
+        shadowRadius: 8,
       },
       android: {
-        elevation: 2,
+        elevation: 3,
       },
     }),
-  },
-  searchIcon: {
-    marginRight: 12,
   },
   searchInput: {
     flex: 1,
     fontSize: 16,
     color: homeColors.textPrimary,
-    padding: 0,
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+    maxHeight: 120,
+    textAlignVertical: 'center',
+    borderWidth: 0,
+    ...Platform.select({
+      web: { outlineStyle: 'none', outlineWidth: 0, outlineColor: 'transparent' },
+      default: {},
+    }),
   },
-  durationRow: {
+  searchActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 20,
-    gap: 10,
   },
-  recIndicator: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: '#dc2626',
-    opacity: 1,
-  },
-  recPaused: {
-    opacity: 0.5,
-  },
-  durationText: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: homeColors.textPrimary,
-    fontVariant: ['tabular-nums'],
-  },
-  pausedLabel: {
-    fontSize: 14,
-    color: homeColors.textMuted,
-    fontStyle: 'italic',
-  },
-  controlsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+  sendBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(0, 0, 0, 0.06)',
+    alignItems: 'center',
     justifyContent: 'center',
+  },
+  sendBtnActive: {
+    backgroundColor: homeColors.accent,
+  },
+  startRecordingBtn: {
+    width: '100%',
+    paddingVertical: 20,
+    paddingHorizontal: 32,
+    borderRadius: 20,
+    backgroundColor: homeColors.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...Platform.select({
+      ios: {
+        shadowColor: homeColors.accent,
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.35,
+        shadowRadius: 12,
+      },
+      android: {
+        elevation: 8,
+      },
+    }),
+  },
+  startRecordingDisabled: {
+    opacity: 0.6,
+  },
+  startRecordingInner: {
+    flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
   },
-  webHint: {
-    fontSize: 14,
-    color: homeColors.textSecondary,
-    textAlign: 'center',
-    marginBottom: 16,
-    paddingHorizontal: 16,
+  startRecordingLabel: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  recordingCard: {
+    width: '100%',
+    paddingVertical: 24,
+    paddingHorizontal: 24,
+    borderRadius: 20,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.06)',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.08,
+        shadowRadius: 16,
+      },
+      android: {
+        elevation: 6,
+      },
+    }),
+  },
+  recordingHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
+    gap: 12,
+  },
+  recIndicatorOuter: {
+    padding: 4,
+  },
+  recIndicator: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: '#dc2626',
+  },
+  recPaused: {
+    opacity: 0.6,
+  },
+  recordingDuration: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: homeColors.textPrimary,
+    fontVariant: ['tabular-nums'],
+  },
+  pausedBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    backgroundColor: 'rgba(139, 92, 246, 0.12)',
+  },
+  pausedBadgeText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: homeColors.accent,
+  },
+  recordingActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 16,
+  },
+  recordingActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    borderRadius: 16,
+    backgroundColor: 'rgba(0, 0, 0, 0.04)',
+    minWidth: 120,
+    justifyContent: 'center',
+  },
+  recordingActionLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: homeColors.textPrimary,
+  },
+  stopBtn: {
+    backgroundColor: '#dc2626',
+  },
+  stopLabel: {
+    color: '#fff',
+  },
+  stopIcon: {
+    width: 14,
+    height: 14,
+    borderRadius: 3,
+    backgroundColor: '#fff',
   },
 });
