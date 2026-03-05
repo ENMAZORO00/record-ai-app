@@ -20,6 +20,8 @@ import {
   RecordingOptionsPresets,
   isRecordingSupported,
 } from '../../services/audioRecorder';
+import { uploadRecording } from '../../services/api';
+import { useAuth } from '../../context/AuthContext';
 import { homeColors } from '../../theme/homeColors';
 
 const RecordingState = {
@@ -28,13 +30,15 @@ const RecordingState = {
   PAUSED: 'paused',
 };
 
-export default function AssistantView() {
+export default function AssistantView({ onUploadSuccess, onSwitchToTranscript }) {
+  const { token } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [recording, setRecording] = useState(null);
   const [recordingState, setRecordingState] = useState(RecordingState.IDLE);
   const [recordingDuration, setRecordingDuration] = useState(0);
   const [permissionGranted, setPermissionGranted] = useState(false);
   const [permissionLoading, setPermissionLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const durationRef = React.useRef(null);
   const pulseAnim = React.useRef(new Animated.Value(1)).current;
 
@@ -120,24 +124,46 @@ export default function AssistantView() {
 
   const stopRecording = useCallback(async () => {
     if (!recording) return;
+    const rec = recording;
     try {
       if (durationRef.current) {
         clearInterval(durationRef.current);
         durationRef.current = null;
       }
-      await recording.stopAndUnloadAsync();
-      const uri = recording.getURI();
+      await rec.stopAndUnloadAsync();
+      const uri = rec.getURI();
       setRecording(null);
       setRecordingState(RecordingState.IDLE);
       setRecordingDuration(0);
-      // TODO: Send uri to backend / process transcript
-      if (uri) {
-        console.log('Recording saved:', uri);
+
+      if (uri && token) {
+        setUploading(true);
+        try {
+          const result = await uploadRecording(token, {
+            uri,
+            type: 'audio/m4a',
+            name: `recording-${Date.now()}.m4a`,
+          });
+          onUploadSuccess?.(result);
+          if (onSwitchToTranscript) onSwitchToTranscript();
+          Alert.alert(
+            'Recording saved',
+            'Your conversation is being transcribed. View it in the Transcript tab when ready.'
+          );
+        } catch (err) {
+          console.warn('Upload error:', err);
+          Alert.alert('Upload failed', err?.message || 'Could not upload recording. Please try again.');
+        } finally {
+          setUploading(false);
+        }
+      } else if (uri && !token) {
+        Alert.alert('Not signed in', 'Sign in to save and transcribe recordings.');
       }
     } catch (err) {
       console.warn('Stop recording error:', err);
+      setUploading(false);
     }
-  }, [recording]);
+  }, [recording, token, onUploadSuccess, onSwitchToTranscript]);
 
   useEffect(() => {
     return () => {
@@ -218,7 +244,12 @@ export default function AssistantView() {
           </View>
 
           {/* Recording controls */}
-          {recordingState === RecordingState.IDLE ? (
+          {uploading ? (
+            <View style={styles.uploadingCard}>
+              <ActivityIndicator size="large" color={homeColors.accent} />
+              <Text style={styles.uploadingText}>Saving & transcribing…</Text>
+            </View>
+          ) : recordingState === RecordingState.IDLE ? (
             <TouchableOpacity
               style={[styles.startRecordingBtn, !isRecordingSupported && styles.startRecordingDisabled]}
               onPress={startRecording}
@@ -490,5 +521,22 @@ const styles = StyleSheet.create({
     height: 14,
     borderRadius: 3,
     backgroundColor: '#fff',
+  },
+  uploadingCard: {
+    width: '100%',
+    paddingVertical: 32,
+    paddingHorizontal: 24,
+    borderRadius: 20,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.06)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+  },
+  uploadingText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: homeColors.textSecondary,
   },
 });

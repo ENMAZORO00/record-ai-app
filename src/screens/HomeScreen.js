@@ -53,7 +53,11 @@ export default function HomeScreen() {
   const renderContent = () => {
     switch (activeTab) {
       case 'assistant':
-        return <AssistantView />;
+        return (
+          <AssistantView
+            onSwitchToTranscript={() => setActiveTab('transcript')}
+          />
+        );
       case 'taskbar':
         return <TaskBarView />;
       case 'transcript':
@@ -61,7 +65,7 @@ export default function HomeScreen() {
       case 'mindmap':
         return <MindMapView />;
       default:
-        return <AssistantView />;
+        return <AssistantView onSwitchToTranscript={() => setActiveTab('transcript')} />;
     }
   };
 

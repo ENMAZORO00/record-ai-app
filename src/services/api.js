@@ -40,6 +40,56 @@ export const createApi = (token) => ({
     fetch(`${getBaseUrl()}${path}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } }).then(handleResponse),
 });
 
+/**
+ * Get list of transcripts for the current user.
+ */
+export async function getTranscripts(token) {
+  const res = await fetch(`${getBaseUrl()}/transcripts`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data?.error || 'Failed to load transcripts');
+  return data;
+}
+
+/**
+ * Get a single transcript with conversations.
+ */
+export async function getTranscript(token, id) {
+  const res = await fetch(`${getBaseUrl()}/transcripts/${id}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data?.error || 'Failed to load transcript');
+  return data;
+}
+
+/**
+ * Upload recording file to backend. FormData with field "recording".
+ * @param {string} token - Auth token
+ * @param {object} file - { uri, type?, name? } (React Native file object for FormData)
+ * @returns {Promise<{ id, recordingUrl, status }>}
+ */
+export async function uploadRecording(token, file) {
+  const formData = new FormData();
+  formData.append('recording', {
+    uri: file.uri,
+    type: file.type || 'audio/m4a',
+    name: file.name || 'recording.m4a',
+  });
+  const res = await fetch(`${getBaseUrl()}/transcripts/upload`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      // Do not set Content-Type; let the client set multipart boundary
+    },
+    body: formData,
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data?.error || 'Upload failed');
+  return data;
+}
+
 export const authApi = {
   signup: (name, email, password) =>
     fetch(`${getBaseUrl()}/auth/signup`, {

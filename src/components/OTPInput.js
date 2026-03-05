@@ -79,7 +79,7 @@ export default function OTPInput({ value, onChangeText, digitCount = DIGIT_COUNT
 }
 
 const styles = StyleSheet.create({
-  wrapper: { marginBottom: 24 },
+  wrapper: { marginBottom: 24, width: '100%', maxWidth: '100%' },
   label: {
     fontSize: 14,
     fontWeight: '500',
@@ -94,10 +94,13 @@ const styles = StyleSheet.create({
   boxRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    gap: 10,
+    gap: 6,
+    width: '100%',
+    maxWidth: '100%',
   },
   box: {
     flex: 1,
+    minWidth: 0,
     height: 52,
     backgroundColor: authColors.inputBg,
     borderRadius: 12,
@@ -107,6 +110,8 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: authColors.textPrimary,
     textAlign: 'center',
+    paddingHorizontal: 4,
+    overflow: 'hidden',
   },
   boxFilled: {
     borderColor: authColors.gradientStart,
