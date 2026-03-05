@@ -1,19 +1,19 @@
 /**
- * Home screen theme – matches app auth screens (light, purple-pink aesthetic)
+ * Home screen theme – voice recording design spec
  */
 export const homeColors = {
-  // Background (same as auth)
-  bgStart: '#fdfbff',
-  bgEnd: '#f5f0ff',
+  // Background
+  bgStart: '#FAFBFD',
+  bgEnd: '#FAFBFD',
 
-  // Brand / accent
-  accent: '#8b5cf6',
+  // Brand / accent (#9810FA from design)
+  accent: '#9810FA',
   accentMuted: '#7c3aed',
 
   // Text
-  textPrimary: '#4c1d95',
+  textPrimary: '#000000',
   textSecondary: '#6b7280',
-  textMuted: '#9ca3af',
+  textMuted: '#99A1AF',
 
   // Glass / surfaces
   glassBg: 'rgba(255, 255, 255, 0.65)',

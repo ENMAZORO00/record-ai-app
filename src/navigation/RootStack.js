@@ -1,5 +1,6 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import HomeScreen from '../screens/HomeScreen';
+import VoiceRecordingScreen from '../screens/home/VoiceRecordingScreen';
 import SplashScreen from '../screens/SplashScreen';
 import SignUpScreen from '../screens/SignUpScreen';
 import VerifyOTPScreen from '../screens/VerifyOTPScreen';
@@ -22,6 +23,7 @@ export default function RootStack() {
       <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
       <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
       <Stack.Screen name="Home" component={HomeScreen} />
+      <Stack.Screen name="VoiceRecording" component={VoiceRecordingScreen} />
     </Stack.Navigator>
   );
 }

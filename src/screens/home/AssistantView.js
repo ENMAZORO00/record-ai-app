@@ -30,9 +30,19 @@ const RecordingState = {
   PAUSED: 'paused',
 };
 
-export default function AssistantView({ onUploadSuccess, onSwitchToTranscript }) {
-  const { token } = useAuth();
+function getInitials(name) {
+  if (!name || typeof name !== 'string') return 'A';
+  const parts = name.trim().split(/\s+/);
+  if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  return name.slice(0, 1).toUpperCase();
+}
+
+export default function AssistantView({ onUploadSuccess, onSwitchToTranscript, onStartRecording }) {
+  const { token, user } = useAuth();
+  const userName = user?.name?.split?.(' ')?.[0] || 'there';
   const [searchQuery, setSearchQuery] = useState('');
+  const [messages, setMessages] = useState([]);
+  const chatScrollRef = React.useRef(null);
   const [recording, setRecording] = useState(null);
   const [recordingState, setRecordingState] = useState(RecordingState.IDLE);
   const [recordingDuration, setRecordingDuration] = useState(0);
@@ -198,6 +208,20 @@ export default function AssistantView({ onUploadSuccess, onSwitchToTranscript })
     return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   };
 
+  const handleSendMessage = () => {
+    const trimmed = searchQuery.trim();
+    if (!trimmed || recordingState !== RecordingState.IDLE) return;
+    setMessages((prev) => [
+      ...prev,
+      { role: 'user', text: trimmed },
+      { role: 'assistant', text: 'Searching precise transcri...', isLoading: true },
+    ]);
+    setSearchQuery('');
+    setTimeout(() => chatScrollRef.current?.scrollToEnd?.({ animated: true }), 100);
+  };
+
+  const showChat = messages.length > 0;
+
   return (
     <KeyboardAvoidingView
       style={styles.container}
@@ -205,65 +229,77 @@ export default function AssistantView({ onUploadSuccess, onSwitchToTranscript })
       keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
     >
       <ScrollView
-        contentContainerStyle={styles.scrollContent}
+        ref={chatScrollRef}
+        contentContainerStyle={[styles.scrollContent, showChat && styles.chatScrollContent]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.centerSection}>
-          <Text style={styles.greeting}>Ask Memory Assistant</Text>
-
-          {/* ChatGPT-style input bar */}
-          <View style={styles.searchWrapper}>
-            <View style={styles.searchBar}>
-              <TextInput
-                style={styles.searchInput}
-                placeholder="Search for information..."
-                placeholderTextColor={homeColors.textMuted}
-                value={searchQuery}
-                onChangeText={setSearchQuery}
-                returnKeyType="send"
-                multiline
-                maxLength={4000}
-                editable={recordingState === RecordingState.IDLE}
-                underlineColorAndroid="transparent"
-              />
-              <View style={styles.searchActions}>
-                <TouchableOpacity
-                  style={[styles.sendBtn, (searchQuery.trim().length > 0) && styles.sendBtnActive]}
-                  disabled={searchQuery.trim().length === 0}
-                  activeOpacity={0.7}
-                >
-                  <Ionicons
-                    name="arrow-up"
-                    size={20}
-                    color={searchQuery.trim().length > 0 ? '#fff' : homeColors.textMuted}
-                  />
-                </TouchableOpacity>
-              </View>
+          {showChat ? (
+            /* Chat UI - ChatGPT style */
+            <View style={styles.chatArea}>
+              {messages.map((msg, idx) =>
+                msg.role === 'user' ? (
+                  <View key={idx} style={styles.userBubbleRow}>
+                    <View style={styles.userBubble}>
+                      <Text style={styles.bubbleText} numberOfLines={10}>
+                        {msg.text}
+                      </Text>
+                    </View>
+                    <View style={styles.userAvatar}>
+                      <Text style={styles.userAvatarText}>{getInitials(user?.name)}</Text>
+                    </View>
+                  </View>
+                ) : (
+                  <View key={idx} style={styles.assistantBubbleRow}>
+                    <View style={styles.assistantAvatar}>
+                      <Ionicons name="sparkles" size={20} color={homeColors.accent} />
+                    </View>
+                    <View style={styles.assistantBubble}>
+                      <Text style={styles.bubbleTextAssistant} numberOfLines={10}>
+                        {msg.text}
+                      </Text>
+                    </View>
+                  </View>
+                )
+              )}
             </View>
-          </View>
+          ) : (
+            <>
+              {/* Greeting section - design spec */}
+              <View style={styles.greetingSection}>
+                <Text style={styles.greeting}>Hi, {userName}!{'\n'}How can I help you ?</Text>
+                <Text style={styles.greetingHint}>Ready to record, transcribe ?</Text>
+              </View>
 
-          {/* Recording controls */}
-          {uploading ? (
+              {/* Start Recording button - rgba(165, 100, 255, 0.13), #9810FA */}
+              {uploading ? (
             <View style={styles.uploadingCard}>
               <ActivityIndicator size="large" color={homeColors.accent} />
               <Text style={styles.uploadingText}>Saving & transcribing…</Text>
             </View>
           ) : recordingState === RecordingState.IDLE ? (
             <TouchableOpacity
-              style={[styles.startRecordingBtn, !isRecordingSupported && styles.startRecordingDisabled]}
-              onPress={startRecording}
-              disabled={!isRecordingSupported || permissionLoading}
-              activeOpacity={0.85}
+              style={[
+                styles.startRecordingBtn,
+                !onStartRecording && !isRecordingSupported && styles.startRecordingDisabled,
+              ]}
+              onPress={() => {
+                if (onStartRecording) {
+                  onStartRecording();
+                } else {
+                  startRecording();
+                }
+              }}
+              disabled={(!onStartRecording && !isRecordingSupported) || permissionLoading}
+              activeOpacity={0.7}
             >
-              <View style={styles.startRecordingInner}>
-                {permissionLoading ? (
-                  <ActivityIndicator size="small" color="#fff" />
-                ) : (
-                  <Ionicons name="mic" size={32} color="#fff" />
-                )}
-                <Text style={styles.startRecordingLabel}>Start Recording</Text>
-              </View>
+              {permissionLoading ? (
+                <ActivityIndicator size="small" color={homeColors.accent} />
+              ) : (
+                <Ionicons name="mic" size={24} color={homeColors.accent} />
+              )}
+              <Text style={styles.startRecordingLabel}>Start Recording</Text>
             </TouchableOpacity>
           ) : (
             <View style={styles.recordingCard}>
@@ -315,6 +351,39 @@ export default function AssistantView({ onUploadSuccess, onSwitchToTranscript })
               </View>
             </View>
           )}
+            </>
+          )}
+
+          {/* Message input bar - design spec */}
+          <View style={styles.messageWrapper}>
+            <View style={styles.messageBar}>
+              <TextInput
+                style={styles.messageInput}
+                placeholder="Type a message"
+                placeholderTextColor={homeColors.textMuted}
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                onSubmitEditing={handleSendMessage}
+                returnKeyType="send"
+                multiline
+                maxLength={4000}
+                editable={recordingState === RecordingState.IDLE}
+                underlineColorAndroid="transparent"
+              />
+              <TouchableOpacity
+                style={[styles.sendBtn, searchQuery.trim().length > 0 && styles.sendBtnActive]}
+                disabled={searchQuery.trim().length === 0}
+                onPress={handleSendMessage}
+                activeOpacity={0.7}
+              >
+                <Ionicons
+                  name="paper-plane-outline"
+                  size={24}
+                  color={searchQuery.trim().length > 0 ? '#fff' : '#000000'}
+                />
+              </TouchableOpacity>
+            </View>
+          </View>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -332,33 +401,114 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingVertical: 32,
   },
+  chatScrollContent: {
+    justifyContent: 'flex-start',
+    paddingBottom: 24,
+  },
+  chatArea: {
+    width: '100%',
+    gap: 20,
+  },
+  userBubbleRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'flex-end',
+    gap: 8,
+  },
+  userBubble: {
+    maxWidth: '80%',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 12,
+    backgroundColor: 'rgba(217, 217, 217, 0.2)',
+  },
+  bubbleText: {
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
+    fontSize: 14,
+    fontWeight: '400',
+    lineHeight: 17,
+    color: '#6A7282',
+  },
+  userAvatar: {
+    width: 38,
+    height: 38,
+    borderRadius: 17,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  userAvatarText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: homeColors.accent,
+  },
+  assistantBubbleRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 8,
+  },
+  assistantAvatar: {
+    width: 38,
+    height: 38,
+    borderRadius: 17,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  assistantBubble: {
+    maxWidth: '80%',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 12,
+    backgroundColor: 'rgba(217, 217, 217, 0.2)',
+  },
+  bubbleTextAssistant: {
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
+    fontSize: 12,
+    fontWeight: '400',
+    lineHeight: 14,
+    color: '#6A7282',
+  },
   centerSection: {
     width: '100%',
     maxWidth: 480,
     alignItems: 'center',
   },
+  greetingSection: {
+    marginBottom: 32,
+    alignItems: 'center',
+    gap: 12,
+  },
   greeting: {
-    fontSize: 26,
-    fontWeight: '700',
-    color: homeColors.textPrimary,
-    marginBottom: 28,
+    fontSize: 22,
+    fontWeight: '600',
+    lineHeight: 22,
+    color: '#000000',
     textAlign: 'center',
   },
-  searchWrapper: {
-    width: '100%',
-    marginBottom: 24,
+  greetingHint: {
+    fontSize: 14,
+    fontWeight: '500',
+    lineHeight: 22,
+    color: '#000000',
+    textAlign: 'center',
   },
-  searchBar: {
+  messageWrapper: {
+    width: '100%',
+    marginTop: 24,
+  },
+  messageBar: {
     flexDirection: 'row',
-    alignItems: 'flex-end',
-    minHeight: 52,
+    alignItems: 'center',
+    minHeight: 74,
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 16,
     paddingRight: 8,
-    borderRadius: 26,
-    backgroundColor: '#ffffff',
+    gap: 9,
+    borderRadius: 20,
+    backgroundColor: 'rgba(0, 0, 0, 0.004)',
     borderWidth: 1,
-    borderColor: 'rgba(0, 0, 0, 0.08)',
+    borderColor: 'rgba(153, 161, 175, 0.29)',
     ...Platform.select({
       ios: {
         shadowColor: '#000',
@@ -371,10 +521,12 @@ const styles = StyleSheet.create({
       },
     }),
   },
-  searchInput: {
+  messageInput: {
     flex: 1,
     fontSize: 16,
-    color: homeColors.textPrimary,
+    fontWeight: '500',
+    lineHeight: 22,
+    color: '#000000',
     paddingVertical: 8,
     paddingHorizontal: 4,
     maxHeight: 120,
@@ -385,53 +537,41 @@ const styles = StyleSheet.create({
       default: {},
     }),
   },
-  searchActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
   sendBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(0, 0, 0, 0.06)',
+    width: 58,
+    height: 54,
+    borderRadius: 100,
+    backgroundColor: 'rgba(0, 0, 0, 0.004)',
+    borderWidth: 1,
+    borderColor: '#E0E3E7',
     alignItems: 'center',
     justifyContent: 'center',
   },
   sendBtnActive: {
     backgroundColor: homeColors.accent,
+    borderColor: homeColors.accent,
   },
   startRecordingBtn: {
     width: '100%',
-    paddingVertical: 20,
-    paddingHorizontal: 32,
-    borderRadius: 20,
-    backgroundColor: homeColors.accent,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    ...Platform.select({
-      ios: {
-        shadowColor: homeColors.accent,
-        shadowOffset: { width: 0, height: 6 },
-        shadowOpacity: 0.35,
-        shadowRadius: 12,
-      },
-      android: {
-        elevation: 8,
-      },
-    }),
+    paddingVertical: 16,
+    paddingHorizontal: 36,
+    paddingRight: 36,
+    gap: 10,
+    borderRadius: 20,
+    backgroundColor: 'rgba(165, 100, 255, 0.13)',
+    ...Platform.select({ web: { cursor: 'pointer' }, default: {} }),
   },
   startRecordingDisabled: {
     opacity: 0.6,
   },
-  startRecordingInner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
   startRecordingLabel: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#fff',
+    fontSize: 16,
+    fontWeight: '500',
+    lineHeight: 22,
+    color: '#9810FA',
   },
   recordingCard: {
     width: '100%',

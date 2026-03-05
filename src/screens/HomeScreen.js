@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -7,25 +7,26 @@ import {
   Modal,
   Pressable,
   Platform,
+  TextInput,
+  Animated,
+  Dimensions,
+  ScrollView,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from 'expo-blur';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
 import { homeColors } from '../theme/homeColors';
 import AssistantView from './home/AssistantView';
 import TaskBarView from './home/TaskBarView';
 import TranscriptView from './home/TranscriptView';
 import MindMapView from './home/MindMapView';
-
 const TABS = [
   { id: 'assistant', label: 'Assistant', icon: 'sparkles' },
-  { id: 'taskbar', label: 'Task Bar', icon: 'checkbox-outline' },
+  { id: 'taskbar', label: 'Tasks', icon: 'cube-outline' },
   { id: 'transcript', label: 'Transcript', icon: 'document-text-outline' },
-  { id: 'mindmap', label: 'Mind Map', icon: 'git-network-outline' },
+  { id: 'mindmap', label: 'Mindmap', icon: 'bulb-outline' },
 ];
 
 function getInitials(name) {
@@ -39,16 +40,59 @@ function getInitials(name) {
 
 export default function HomeScreen() {
   const navigation = useNavigation();
+  const route = useRoute();
   const { user, signOut } = useAuth();
   const insets = useSafeAreaInsets();
   const [activeTab, setActiveTab] = useState('assistant');
-  const [dropdownVisible, setDropdownVisible] = useState(false);
+  const [sidebarVisible, setSidebarVisible] = useState(false);
+  const [sidebarMounted, setSidebarMounted] = useState(false);
+  const [avatarMenuVisible, setAvatarMenuVisible] = useState(false);
+  const slideAnim = useRef(new Animated.Value(-242)).current;
+
+  useEffect(() => {
+    if (sidebarVisible) {
+      setSidebarMounted(true);
+      Animated.spring(slideAnim, {
+        toValue: 0,
+        useNativeDriver: true,
+        tension: 65,
+        friction: 11,
+      }).start();
+    } else {
+      Animated.timing(slideAnim, {
+        toValue: -242,
+        duration: 250,
+        useNativeDriver: true,
+      }).start(({ finished }) => {
+        if (finished) setSidebarMounted(false);
+      });
+    }
+  }, [sidebarVisible]);
+
+  const closeSidebar = () => setSidebarVisible(false);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      if (route.params?.switchToTranscript) {
+        setActiveTab('transcript');
+        navigation.setParams({ switchToTranscript: undefined });
+      }
+    }, [route.params?.switchToTranscript])
+  );
 
   const handleLogout = async () => {
-    setDropdownVisible(false);
+    setAvatarMenuVisible(false);
     await signOut();
     navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
   };
+
+  const chatHistory = [
+    'My Yesterday chat history of..',
+    'My Today chat history one..',
+    'During my meeting chat on..',
+    'My Today chat history one..',
+    'My Yesterday chat history of..',
+  ];
 
   const renderContent = () => {
     switch (activeTab) {
@@ -56,6 +100,7 @@ export default function HomeScreen() {
         return (
           <AssistantView
             onSwitchToTranscript={() => setActiveTab('transcript')}
+            onStartRecording={() => navigation.navigate('VoiceRecording')}
           />
         );
       case 'taskbar':
@@ -65,45 +110,49 @@ export default function HomeScreen() {
       case 'mindmap':
         return <MindMapView />;
       default:
-        return <AssistantView onSwitchToTranscript={() => setActiveTab('transcript')} />;
+        return (
+          <AssistantView
+            onSwitchToTranscript={() => setActiveTab('transcript')}
+            onStartRecording={() => navigation.navigate('VoiceRecording')}
+          />
+        );
     }
   };
 
   return (
     <View style={styles.container}>
       <StatusBar style="dark" />
-      <LinearGradient
-        colors={[homeColors.bgStart, homeColors.bgEnd]}
-        style={StyleSheet.absoluteFill}
-      />
+      <View style={[StyleSheet.absoluteFill, styles.bgFill]} pointerEvents="none" />
 
-      {/* Header with avatar */}
+      {/* Header with hamburger (assistant only) and avatar */}
       <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
+        {activeTab === 'assistant' ? (
+          <TouchableOpacity
+            style={styles.hamburgerBtn}
+            onPress={() => setSidebarVisible(true)}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="menu" size={26} color={homeColors.textPrimary} />
+          </TouchableOpacity>
+        ) : (
+          <View style={styles.hamburgerBtn} />
+        )}
         <TouchableOpacity
           style={styles.avatarWrap}
-          onPress={() => setDropdownVisible(true)}
+          onPress={() => setAvatarMenuVisible(true)}
           activeOpacity={0.8}
         >
-          <LinearGradient
-            colors={[homeColors.accent, '#a78bfa']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.avatar}
-          >
+          <View style={[styles.avatar, { backgroundColor: homeColors.accent }]}>
             <Text style={styles.avatarText}>{getInitials(user?.name)}</Text>
-          </LinearGradient>
+          </View>
         </TouchableOpacity>
       </View>
 
       {/* Main content area */}
       <View style={styles.content}>{renderContent()}</View>
 
-      {/* Floating glass tab bar */}
-      <BlurView
-        intensity={70}
-        tint="light"
-        style={[styles.tabBar, { marginBottom: insets.bottom + 16 }]}
-      >
+      {/* Bottom navigation - rgba(255,255,255,0.13), borderRadius 20 */}
+      <View style={[styles.tabBar, { marginBottom: insets.bottom + 16 }]}>
         {TABS.map((tab) => {
           const isActive = activeTab === tab.id;
           return (
@@ -115,8 +164,8 @@ export default function HomeScreen() {
             >
               <Ionicons
                 name={tab.icon}
-                size={22}
-                color={isActive ? homeColors.accent : homeColors.textMuted}
+                size={24}
+                color={isActive ? '#9810FA' : '#99A1AF'}
               />
               <Text
                 style={[styles.glassLabel, isActive && styles.glassLabelActive]}
@@ -127,38 +176,118 @@ export default function HomeScreen() {
             </TouchableOpacity>
           );
         })}
-      </BlurView>
+      </View>
 
-      {/* Dropdown modal */}
+      {/* Sidebar modal */}
       <Modal
-        visible={dropdownVisible}
+        visible={sidebarMounted}
         transparent
         animationType="fade"
-        onRequestClose={() => setDropdownVisible(false)}
+        onRequestClose={closeSidebar}
       >
         <Pressable
-          style={[styles.modalOverlay, { paddingTop: insets.top + 56 }]}
-          onPress={() => setDropdownVisible(false)}
+          style={styles.sidebarOverlay}
+          onPress={closeSidebar}
+        >
+          <Pressable onPress={(e) => e.stopPropagation()}>
+            <Animated.View
+              style={[
+                styles.sidebar,
+                {
+                  top: 0,
+                  height: Dimensions.get('window').height,
+                  paddingTop: insets.top,
+                  paddingBottom: insets.bottom,
+                  transform: [{ translateX: slideAnim }],
+                },
+              ]}
+            >
+              {/* Header: Back + Hamburger */}
+              <View style={styles.sidebarHeader}>
+                <TouchableOpacity
+                  style={styles.sidebarBackBtn}
+                  onPress={closeSidebar}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="chevron-back" size={20} color="#000" />
+                  <Text style={styles.sidebarBackText}>Back</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={closeSidebar}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="menu" size={24} color="#000" />
+                </TouchableOpacity>
+              </View>
+
+              {/* New Chat button */}
+              <TouchableOpacity
+                style={styles.newChatBtn}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="pencil-outline" size={20} color="#99A1AF" />
+                <Text style={styles.newChatText}>New Chat..</Text>
+              </TouchableOpacity>
+
+              {/* Chat History section */}
+                <View style={styles.chatHistorySection}>
+                <Text style={styles.chatHistoryTitle}>Chat History</Text>
+                <View style={styles.searchBar}>
+                  <Ionicons name="search" size={20} color="#99A1AF" />
+                  <TextInput
+                    style={styles.searchInput}
+                    placeholder="Search"
+                    placeholderTextColor="#99A1AF"
+                  />
+                </View>
+                <ScrollView
+                  style={styles.chatListScroll}
+                  showsVerticalScrollIndicator={false}
+                >
+                  <View style={styles.chatList}>
+                    {chatHistory.map((item, i) => (
+                      <TouchableOpacity
+                        key={i}
+                        style={styles.chatItem}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={styles.chatItemText} numberOfLines={1}>
+                          {item}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </ScrollView>
+              </View>
+            </Animated.View>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* Avatar menu: user email + logout */}
+      <Modal
+        visible={avatarMenuVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setAvatarMenuVisible(false)}
+      >
+        <Pressable
+          style={styles.avatarMenuOverlay}
+          onPress={() => setAvatarMenuVisible(false)}
         >
           <Pressable
-            style={styles.dropdown}
+            style={[styles.avatarMenuCard, { top: insets.top + 60 }]}
             onPress={(e) => e.stopPropagation()}
           >
-            <View style={styles.dropdownArrow} />
-            <View style={styles.dropdownContent}>
-              <Text style={styles.dropdownEmail} numberOfLines={1}>
-                {user?.email || 'No email'}
-              </Text>
-              <View style={styles.dropdownDivider} />
-              <TouchableOpacity
-                style={styles.logoutButton}
-                onPress={handleLogout}
-                activeOpacity={0.7}
-              >
-                <Ionicons name="log-out-outline" size={20} color={homeColors.logoutRed} />
-                <Text style={styles.logoutText}>Sign Out</Text>
-              </TouchableOpacity>
-            </View>
+            <Text style={styles.avatarMenuEmail}>{user?.email || 'No email'}</Text>
+            <TouchableOpacity
+              style={styles.avatarMenuLogout}
+              onPress={handleLogout}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="log-out-outline" size={20} color={homeColors.logoutRed} />
+              <Text style={styles.logoutText}>Logout</Text>
+            </TouchableOpacity>
           </Pressable>
         </Pressable>
       </Modal>
@@ -169,13 +298,22 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#FAFBFD',
+  },
+  bgFill: {
+    backgroundColor: '#FAFBFD',
   },
   header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingBottom: 16,
   },
+  hamburgerBtn: {
+    padding: 4,
+  },
   avatarWrap: {
-    alignSelf: 'flex-end',
   },
   avatar: {
     width: 44,
@@ -197,13 +335,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginHorizontal: 16,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.4)',
-    overflow: 'hidden',
+    marginHorizontal: 17,
+    paddingHorizontal: 11,
+    paddingVertical: 12,
+    gap: 23,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.13)',
     ...Platform.select({
       ios: {
         shadowColor: '#000',
@@ -224,72 +361,166 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
   },
   glassButtonActive: {
-    backgroundColor: 'rgba(255, 255, 255, 0.5)',
+    backgroundColor: 'transparent',
     borderRadius: 16,
-    marginHorizontal: 2,
   },
   glassLabel: {
-    fontSize: 11,
-    fontWeight: '500',
-    color: homeColors.textMuted,
+    fontSize: 10,
+    fontWeight: '400',
+    lineHeight: 15,
+    color: '#99A1AF',
     marginTop: 4,
   },
   glassLabelActive: {
-    color: homeColors.accent,
-    fontWeight: '600',
+    color: '#9810FA',
+    fontWeight: '400',
   },
-  modalOverlay: {
+  sidebarOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.2)',
-    paddingRight: 20,
-    paddingLeft: 20,
-    alignItems: 'flex-end',
   },
-  dropdown: {
-    backgroundColor: homeColors.dropdownBg,
-    borderRadius: 16,
-    minWidth: 240,
+  sidebar: {
+    position: 'absolute',
+    left: 0,
+    width: 242,
+    flexDirection: 'column',
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 16,
     ...Platform.select({
       ios: {
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.12,
-        shadowRadius: 16,
+        shadowOffset: { width: 2, height: 0 },
+        shadowOpacity: 0.1,
+        shadowRadius: 8,
       },
       android: {
         elevation: 12,
       },
     }),
-    overflow: 'visible',
   },
-  dropdownArrow: {
+  sidebarHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 20,
+  },
+  sidebarBackBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  sidebarBackText: {
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
+    fontWeight: '600',
+    fontSize: 14,
+    lineHeight: 22,
+    color: '#000000',
+  },
+  newChatBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 36,
+    gap: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(153, 161, 175, 0.29)',
+    borderRadius: 20,
+    marginBottom: 20,
+  },
+  newChatText: {
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
+    fontWeight: '500',
+    fontSize: 14,
+    lineHeight: 22,
+    color: '#99A1AF',
+  },
+  chatHistorySection: {
+    flex: 1,
+    minHeight: 0,
+  },
+  chatHistoryTitle: {
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
+    fontWeight: '500',
+    fontSize: 14,
+    lineHeight: 22,
+    color: '#000000',
+    marginBottom: 20,
+  },
+  searchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 36,
+    gap: 10,
+    backgroundColor: 'rgba(0, 0, 0, 0.004)',
+    borderWidth: 1,
+    borderColor: 'rgba(153, 161, 175, 0.29)',
+    borderRadius: 20,
+    marginBottom: 20,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 14,
+    lineHeight: 22,
+    color: '#000',
+    padding: 0,
+  },
+  chatListScroll: {
+    flex: 1,
+  },
+  chatList: {
+    gap: 18,
+    paddingBottom: 16,
+  },
+  chatItem: {
+    paddingVertical: 4,
+  },
+  chatItemText: {
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
+    fontWeight: '500',
+    fontSize: 14,
+    lineHeight: 22,
+    color: '#000000',
+  },
+  avatarMenuOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.2)',
+    alignItems: 'flex-end',
+    paddingHorizontal: 20,
+  },
+  avatarMenuCard: {
     position: 'absolute',
-    top: -8,
     right: 20,
-    width: 16,
-    height: 16,
-    backgroundColor: homeColors.dropdownBg,
-    transform: [{ rotate: '45deg' }],
-  },
-  dropdownContent: {
+    minWidth: 220,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
     padding: 16,
-    paddingTop: 20,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.12,
+        shadowRadius: 12,
+      },
+      android: {
+        elevation: 8,
+      },
+    }),
   },
-  dropdownEmail: {
-    fontSize: 15,
-    color: homeColors.textSecondary,
+  avatarMenuEmail: {
+    fontSize: 14,
+    color: '#374151',
     marginBottom: 12,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: homeColors.dropdownBorder,
   },
-  dropdownDivider: {
-    height: 1,
-    backgroundColor: homeColors.dropdownBorder,
-    marginVertical: 8,
-  },
-  logoutButton: {
+  avatarMenuLogout: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    paddingVertical: 10,
+    paddingVertical: 6,
   },
   logoutText: {
     fontSize: 16,
