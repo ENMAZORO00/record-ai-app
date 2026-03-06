@@ -193,6 +193,8 @@ export default function TranscriptView() {
 
   return (
     <View style={styles.container}>
+      {/* Top spacer - matches Task screen header padding */}
+      <View style={styles.topSpacer} />
       {/* Search bar */}
       <View style={styles.searchWrapper}>
         <View style={styles.searchBar}>
@@ -254,9 +256,12 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#FAFBFD',
   },
+  topSpacer: {
+    height: 8,
+  },
   searchWrapper: {
     paddingHorizontal: 16,
-    marginTop: 8,
+    marginTop: 0,
     marginBottom: 16,
     alignItems: 'center',
   },
@@ -296,6 +301,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
     padding: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.06)',
     ...Platform.select({
       ios: {
         shadowColor: '#9810FA',

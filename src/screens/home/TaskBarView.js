@@ -8,13 +8,28 @@ import {
   Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { homeColors } from '../../theme/homeColors';
 
-// Upcoming task card (unchecked - grey circle)
-function UpcomingTaskCard({ text }) {
+// Upcoming task card - circle toggles completion (Notes app style)
+function UpcomingTaskCard({ text, completed, onToggle }) {
   return (
-    <View style={styles.taskCard}>
-      <View style={styles.taskCircle} />
-      <Text style={styles.taskText} numberOfLines={2}>
+    <View style={[styles.taskCard, completed && styles.taskCardComplete]}>
+      <TouchableOpacity
+        style={[styles.taskCircleWrap, completed && styles.taskCircleComplete]}
+        onPress={onToggle}
+        activeOpacity={0.7}
+        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+      >
+        {completed ? (
+          <Ionicons name="checkmark" size={14} color="#FFFFFF" />
+        ) : (
+          <View style={styles.taskCircle} />
+        )}
+      </TouchableOpacity>
+      <Text
+        style={[styles.taskText, completed && styles.taskTextComplete]}
+        numberOfLines={2}
+      >
         {text}
       </Text>
     </View>
@@ -34,11 +49,11 @@ function InfoNoteCard({ text }) {
 }
 
 export default function TaskBarView() {
-  const upcomingTasks = [
-    'Showcasing new design elements and style',
-    'Showcasing new design elements and style',
-    'Showcasing new design elements and style',
-  ];
+  const [tasks, setTasks] = useState([
+    { id: '1', text: 'Showcasing new design elements and style', completed: false },
+    { id: '2', text: 'Showcasing new design elements and style', completed: false },
+    { id: '3', text: 'Showcasing new design elements and style', completed: false },
+  ]);
   const infoNotes = [
     'Your Password set as Adam2029 of Discord',
     'Meeting at 12AM at 3rd wave coffee shop',
@@ -47,14 +62,12 @@ export default function TaskBarView() {
 
   return (
     <View style={styles.container}>
-      {/* Header: back, Notes, plus */}
+      {/* Header: Notes, plus */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.headerBtn} activeOpacity={0.7}>
-          <Ionicons name="chevron-back" size={20} color="#000000" />
-        </TouchableOpacity>
+        <View style={styles.headerBtn} />
         <Text style={styles.headerTitle}>Notes</Text>
         <TouchableOpacity style={styles.addBtn} activeOpacity={0.7}>
-          <Ionicons name="add" size={24} color="#000000" />
+          <Ionicons name="add" size={24} color={homeColors.accent} />
         </TouchableOpacity>
       </View>
 
@@ -68,8 +81,21 @@ export default function TaskBarView() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Upcoming Task</Text>
           <View style={styles.cardList}>
-            {upcomingTasks.map((text, i) => (
-              <UpcomingTaskCard key={i} text={text} />
+            {tasks.map((t) => (
+              <UpcomingTaskCard
+                key={t.id}
+                text={t.text}
+                completed={t.completed}
+                onToggle={() => {
+                  setTasks((prev) =>
+                    prev.map((task) =>
+                      task.id === t.id
+                        ? { ...task, completed: !task.completed }
+                        : task
+                    )
+                  );
+                }}
+              />
             ))}
           </View>
         </View>
@@ -121,7 +147,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderRadius: 19,
     borderWidth: 1.5,
-    borderColor: 'rgba(0,0,0,0.2)',
+    borderColor: homeColors.accent,
   },
   scroll: {
     flex: 1,
@@ -132,7 +158,7 @@ const styles = StyleSheet.create({
   },
   section: {
     gap: 12,
-    marginBottom: 30,
+    marginBottom: 44,
   },
   sectionTitle: {
     fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-medium',
@@ -152,6 +178,8 @@ const styles = StyleSheet.create({
     paddingLeft: 25,
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.07)',
     gap: 10,
     ...Platform.select({
       ios: {
@@ -168,11 +196,30 @@ const styles = StyleSheet.create({
   infoNoteCard: {
     paddingLeft: 20,
   },
+  taskCircleWrap: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   taskCircle: {
     width: 22,
     height: 22,
     borderRadius: 11,
-    backgroundColor: '#D9D9D9',
+    backgroundColor: '#E5E7EB',
+    borderWidth: 2,
+    borderColor: '#D1D5DB',
+  },
+  taskCircleComplete: {
+    backgroundColor: homeColors.accent,
+  },
+  taskCardComplete: {
+    opacity: 0.78,
+  },
+  taskTextComplete: {
+    textDecorationLine: 'line-through',
+    color: '#9CA3AF',
   },
   infoDot: {
     width: 10,

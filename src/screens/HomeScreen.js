@@ -31,15 +31,6 @@ const TABS = [
   { id: 'mindmap', label: 'Mindmap', icon: 'bulb-outline' },
 ];
 
-function getInitials(name) {
-  if (!name || typeof name !== 'string') return '?';
-  const parts = name.trim().split(/\s+/);
-  if (parts.length >= 2) {
-    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-  }
-  return name.slice(0, 2).toUpperCase();
-}
-
 export default function HomeScreen() {
   const navigation = useNavigation();
   const route = useRoute();
@@ -50,7 +41,6 @@ export default function HomeScreen() {
   const [isAssistantMainView, setIsAssistantMainView] = useState(true);
   const [sidebarVisible, setSidebarVisible] = useState(false);
   const [sidebarMounted, setSidebarMounted] = useState(false);
-  const [avatarMenuVisible, setAvatarMenuVisible] = useState(false);
   const [startInChatView, setStartInChatView] = useState(false);
   const slideAnim = useRef(new Animated.Value(-242)).current;
 
@@ -160,7 +150,7 @@ export default function HomeScreen() {
   );
 
   const handleLogout = async () => {
-    setAvatarMenuVisible(false);
+    closeSidebar();
     await signOut();
     navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
   };
@@ -220,28 +210,15 @@ export default function HomeScreen() {
             <Ionicons name="menu" size={26} color={homeColors.textPrimary} />
           </TouchableOpacity>
         ) : activeTab === 'transcript' ? (
-          <TouchableOpacity
-            style={styles.transcriptHeaderLeft}
-            onPress={() => setActiveTab('assistant')}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="chevron-back" size={24} color="#000" />
-            <Text style={styles.transcriptHeaderTitle}>Transcript..</Text>
-          </TouchableOpacity>
+          <>
+            <View style={styles.hamburgerBtn} />
+            <Text style={styles.transcriptHeaderTitle}>Transcript</Text>
+            <View style={styles.hamburgerBtn} />
+          </>
         ) : (
           <View style={styles.hamburgerBtn} />
         )}
-        {activeTab !== 'transcript' && (
-          <TouchableOpacity
-            style={styles.avatarWrap}
-            onPress={() => setAvatarMenuVisible(true)}
-            activeOpacity={0.8}
-          >
-            <View style={[styles.avatar, { backgroundColor: homeColors.accent }]}>
-              <Text style={styles.avatarText}>{getInitials(user?.name)}</Text>
-            </View>
-          </TouchableOpacity>
-        )}
+        {activeTab !== 'transcript' && <View style={styles.hamburgerBtn} />}
       </View>
 
       {/* Main content area */}
@@ -383,35 +360,22 @@ export default function HomeScreen() {
                   </View>
                 </ScrollView>
               </View>
-            </Animated.View>
-          </Pressable>
-        </Pressable>
-      </Modal>
 
-      {/* Avatar menu: user email + logout */}
-      <Modal
-        visible={avatarMenuVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setAvatarMenuVisible(false)}
-      >
-        <Pressable
-          style={styles.avatarMenuOverlay}
-          onPress={() => setAvatarMenuVisible(false)}
-        >
-          <Pressable
-            style={[styles.avatarMenuCard, { top: insets.top + 60 }]}
-            onPress={(e) => e.stopPropagation()}
-          >
-            <Text style={styles.avatarMenuEmail}>{user?.email || 'No email'}</Text>
-            <TouchableOpacity
-              style={styles.avatarMenuLogout}
-              onPress={handleLogout}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="log-out-outline" size={20} color={homeColors.logoutRed} />
-              <Text style={styles.logoutText}>Logout</Text>
-            </TouchableOpacity>
+              {/* Footer: email + logout (ChatGPT-style) */}
+              <View style={[styles.sidebarFooter, { paddingBottom: insets.bottom + 16 }]}>
+                <Text style={styles.sidebarFooterEmail} numberOfLines={1}>
+                  {user?.email || 'No email'}
+                </Text>
+                <TouchableOpacity
+                  style={styles.sidebarFooterLogout}
+                  onPress={handleLogout}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="log-out-outline" size={20} color={homeColors.logoutRed} />
+                  <Text style={styles.sidebarFooterLogoutText}>Logout</Text>
+                </TouchableOpacity>
+              </View>
+            </Animated.View>
           </Pressable>
         </Pressable>
       </Modal>
@@ -437,32 +401,12 @@ const styles = StyleSheet.create({
   hamburgerBtn: {
     padding: 4,
   },
-  transcriptHeaderLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
   transcriptHeaderTitle: {
     fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
     fontWeight: '600',
     fontSize: 18,
     lineHeight: 22,
     color: '#000000',
-  },
-  avatarWrap: {
-  },
-  avatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    justifyContent: 'center',
-    alignItems: 'center',
-    ...(Platform.OS === 'android' && { overflow: 'hidden' }),
-  },
-  avatarText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: homeColors.avatarText,
   },
   content: {
     flex: 1,
@@ -676,47 +620,26 @@ const styles = StyleSheet.create({
     color: homeColors.accent,
     fontWeight: '600',
   },
-  avatarMenuOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.2)',
-    alignItems: 'flex-end',
-    paddingHorizontal: 20,
+  sidebarFooter: {
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(153, 161, 175, 0.25)',
+    paddingTop: 16,
+    marginTop: 8,
   },
-  avatarMenuCard: {
-    position: 'absolute',
-    right: 20,
-    minWidth: 220,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 16,
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.12,
-        shadowRadius: 12,
-      },
-      android: {
-        elevation: 8,
-      },
-    }),
-  },
-  avatarMenuEmail: {
-    fontSize: 14,
-    color: '#374151',
+  sidebarFooterEmail: {
+    fontSize: 12,
+    color: '#6B7280',
     marginBottom: 12,
-    paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: homeColors.dropdownBorder,
+    paddingRight: 8,
   },
-  avatarMenuLogout: {
+  sidebarFooterLogout: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    paddingVertical: 6,
+    paddingVertical: 8,
   },
-  logoutText: {
-    fontSize: 16,
+  sidebarFooterLogoutText: {
+    fontSize: 14,
     fontWeight: '600',
     color: homeColors.logoutRed,
   },
