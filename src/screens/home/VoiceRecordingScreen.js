@@ -8,6 +8,8 @@ import {
   Alert,
   ActivityIndicator,
   Dimensions,
+  Animated,
+  Easing,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -25,16 +27,30 @@ import { homeColors } from '../../theme/homeColors';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
+const RecordingState = {
+  IDLE: 'idle',
+  RECORDING: 'recording',
+  PAUSED: 'paused',
+};
+
 export default function VoiceRecordingScreen() {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   const { token } = useAuth();
   const [recording, setRecording] = useState(null);
+  const [recordingState, setRecordingState] = useState(RecordingState.IDLE);
   const [permissionGranted, setPermissionGranted] = useState(false);
   const [uploading, setUploading] = useState(false);
   const durationRef = useRef(null);
   const recordingRef = useRef(null);
   const [recordingDuration, setRecordingDuration] = useState(0);
+
+  // Orb animation values
+  const orbScale1 = useRef(new Animated.Value(1)).current;
+  const orbScale2 = useRef(new Animated.Value(1)).current;
+  const orbScaleCenter = useRef(new Animated.Value(1)).current;
+  const orbOpacity = useRef(new Animated.Value(0.85)).current;
+  const orbAnimRef = useRef(null);
 
   useEffect(() => {
     recordingRef.current = recording;
@@ -62,26 +78,58 @@ export default function VoiceRecordingScreen() {
       return true;
     } catch (err) {
       console.warn('Permission error:', err);
-        Alert.alert('Error', 'Could not access microphone.', [{ text: 'OK', onPress: () => navigation.goBack() }]);
-        return false;
+      Alert.alert('Error', 'Could not access microphone.', [{ text: 'OK', onPress: () => navigation.goBack() }]);
+      return false;
     }
   }, [navigation]);
 
   const startRecording = useCallback(async () => {
+    if (!permissionGranted) {
+      const ok = await requestPermissions();
+      if (!ok) return;
+    }
     try {
       const { recording: newRecording } = await Recording.createAsync(
         RecordingOptionsPresets?.HIGH_QUALITY ?? {}
       );
       setRecording(newRecording);
+      setRecordingState(RecordingState.RECORDING);
       setRecordingDuration(0);
       durationRef.current = setInterval(() => {
         setRecordingDuration((prev) => prev + 1);
       }, 1000);
     } catch (err) {
       console.warn('Start recording error:', err);
-      Alert.alert('Error', 'Could not start recording.', [{ text: 'OK', onPress: () => navigation.goBack() }]);
+      Alert.alert('Error', 'Could not start recording.', [{ text: 'OK' }]);
     }
-  }, [navigation]);
+  }, [permissionGranted, requestPermissions]);
+
+  const pauseRecording = useCallback(async () => {
+    if (!recording || recordingState !== RecordingState.RECORDING) return;
+    try {
+      await recording.pauseAsync();
+      setRecordingState(RecordingState.PAUSED);
+      if (durationRef.current) {
+        clearInterval(durationRef.current);
+        durationRef.current = null;
+      }
+    } catch (err) {
+      console.warn('Pause recording error:', err);
+    }
+  }, [recording, recordingState]);
+
+  const resumeRecording = useCallback(async () => {
+    if (!recording || recordingState !== RecordingState.PAUSED) return;
+    try {
+      await recording.startAsync();
+      setRecordingState(RecordingState.RECORDING);
+      durationRef.current = setInterval(() => {
+        setRecordingDuration((prev) => prev + 1);
+      }, 1000);
+    } catch (err) {
+      console.warn('Resume recording error:', err);
+    }
+  }, [recording, recordingState]);
 
   const stopAndSave = useCallback(async () => {
     if (!recording) return;
@@ -94,11 +142,12 @@ export default function VoiceRecordingScreen() {
       await rec.stopAndUnloadAsync();
       const uri = rec.getURI();
       setRecording(null);
+      setRecordingState(RecordingState.IDLE);
 
       if (uri && token) {
         setUploading(true);
         try {
-          const result = await uploadRecording(token, {
+          await uploadRecording(token, {
             uri,
             type: 'audio/m4a',
             name: `recording-${Date.now()}.m4a`,
@@ -139,16 +188,89 @@ export default function VoiceRecordingScreen() {
         console.warn('Cancel recording error:', e);
       }
       setRecording(null);
+      setRecordingState(RecordingState.IDLE);
     }
     navigation.goBack();
   }, [recording, navigation]);
 
+  // Central orb animation: breathing pulse that responds to recording state
   useEffect(() => {
-    if (!permissionGranted) {
-      requestPermissions().then((ok) => ok && startRecording());
-    } else {
-      startRecording();
-    }
+    if (orbAnimRef.current) orbAnimRef.current.stop();
+    orbScale1.setValue(1);
+    orbScale2.setValue(1);
+    orbScaleCenter.setValue(1);
+    orbOpacity.setValue(0.85);
+
+    const isRecording = recordingState === RecordingState.RECORDING;
+    const isPaused = recordingState === RecordingState.PAUSED;
+    const duration = isRecording ? 1200 : isPaused ? 2000 : 1800;
+    const scaleTo = isRecording ? 1.12 : 1.06;
+    const opacityTo = isRecording ? 1 : 0.88;
+
+    orbAnimRef.current = Animated.loop(
+      Animated.sequence([
+        Animated.parallel([
+          Animated.timing(orbScale1, {
+            toValue: scaleTo,
+            duration,
+            useNativeDriver: true,
+            easing: Easing.inOut(Easing.ease),
+          }),
+          Animated.timing(orbScale2, {
+            toValue: scaleTo,
+            duration,
+            useNativeDriver: true,
+            easing: Easing.inOut(Easing.ease),
+          }),
+          Animated.timing(orbScaleCenter, {
+            toValue: scaleTo,
+            duration,
+            useNativeDriver: true,
+            easing: Easing.inOut(Easing.ease),
+          }),
+          Animated.timing(orbOpacity, {
+            toValue: opacityTo,
+            duration,
+            useNativeDriver: true,
+            easing: Easing.inOut(Easing.ease),
+          }),
+        ]),
+        Animated.parallel([
+          Animated.timing(orbScale1, {
+            toValue: 1,
+            duration,
+            useNativeDriver: true,
+            easing: Easing.inOut(Easing.ease),
+          }),
+          Animated.timing(orbScale2, {
+            toValue: 1,
+            duration,
+            useNativeDriver: true,
+            easing: Easing.inOut(Easing.ease),
+          }),
+          Animated.timing(orbScaleCenter, {
+            toValue: 1,
+            duration,
+            useNativeDriver: true,
+            easing: Easing.inOut(Easing.ease),
+          }),
+          Animated.timing(orbOpacity, {
+            toValue: 0.85,
+            duration,
+            useNativeDriver: true,
+            easing: Easing.inOut(Easing.ease),
+          }),
+        ]),
+      ])
+    );
+    orbAnimRef.current.start();
+    return () => {
+      if (orbAnimRef.current) orbAnimRef.current.stop();
+    };
+  }, [recordingState]);
+
+  useEffect(() => {
+    requestPermissions();
     return () => {
       if (durationRef.current) clearInterval(durationRef.current);
       const rec = recordingRef.current;
@@ -158,105 +280,167 @@ export default function VoiceRecordingScreen() {
     };
   }, []);
 
+  const isIdle = recordingState === RecordingState.IDLE;
+  const isRecording = recordingState === RecordingState.RECORDING;
+  const isPaused = recordingState === RecordingState.PAUSED;
+  const hasRecording = !!recording;
+
+  const handleMicPress = useCallback(() => {
+    if (uploading) return;
+    if (isIdle) startRecording();
+    else if (isRecording) pauseRecording();
+    else if (isPaused) resumeRecording();
+  }, [uploading, isIdle, isRecording, isPaused, startRecording, pauseRecording, resumeRecording]);
+
+  const formatDuration = (s) => {
+    const m = Math.floor(s / 60);
+    const sec = s % 60;
+    return `${m.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}`;
+  };
+
+  const instructionText =
+    isIdle ? "Tap the mic to start recording" : isRecording ? "Go ahead I'm listening" : "Paused — tap mic to resume";
+  const statusTitle =
+    uploading ? 'Saving & transcribing…' : isIdle ? "Ready to record" : isRecording ? "I'm listening..." : "Paused";
+  const statusSubtitle =
+    uploading
+      ? 'Please wait'
+      : isIdle
+        ? 'Tap the center button to start. Use the stop button to end and save.'
+        : isRecording
+          ? "I'm capturing your conversation, organizing key notes, and saving the transcript live."
+          : 'Tap the mic again to continue recording.';
+
   return (
     <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
-        <View style={styles.bg} />
+      <View style={styles.bg} />
 
-        {/* Header */}
-        <View style={styles.header}>
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity
+          style={styles.backBtn}
+          onPress={cancelRecording}
+          activeOpacity={0.7}
+          disabled={uploading}
+        >
+          <Ionicons name="chevron-back" size={24} color="#000000" />
+        </TouchableOpacity>
+        <View style={styles.headerCenter}>
+          <Text style={styles.headerTitle}>Voice Recording</Text>
+          {hasRecording && (
+            <Text style={styles.durationText}>{formatDuration(recordingDuration)}</Text>
+          )}
+        </View>
+        <View style={styles.headerSpacer} />
+      </View>
+
+      {/* Main content */}
+      <View style={styles.mainSection}>
+        <Text style={styles.instruction}>{instructionText}</Text>
+
+        {/* Central orb / glowing area — animated */}
+        <View style={styles.orbContainer}>
+          <Animated.View
+            style={[
+              styles.orbBlur1,
+              {
+                transform: [{ scale: orbScale1 }],
+                opacity: orbOpacity,
+              },
+            ]}
+          />
+          <Animated.View
+            style={[
+              styles.orbBlur2,
+              {
+                transform: [{ scale: orbScale2 }],
+                opacity: orbOpacity,
+              },
+            ]}
+          />
+          <Animated.View
+            style={[
+              styles.orbCenter,
+              {
+                transform: [{ scale: orbScaleCenter }],
+                opacity: orbOpacity,
+              },
+            ]}
+          >
+            <LinearGradient
+              colors={['rgba(174, 108, 255, 0.45)', 'rgba(112, 202, 255, 0.45)', 'rgba(255, 200, 230, 0.35)']}
+              style={styles.orbGradient}
+            />
+          </Animated.View>
+        </View>
+
+        {/* Status text */}
+        <View style={styles.statusSection}>
+          <Text style={styles.statusTitle}>{statusTitle}</Text>
+          <Text style={styles.statusSubtitle}>{statusSubtitle}</Text>
+        </View>
+
+        {/* Bottom controls */}
+        <View style={[styles.controls, { bottom: insets.bottom + 100 }]}>
           <TouchableOpacity
-            style={styles.backBtn}
-            onPress={cancelRecording}
+            style={styles.controlBtn}
+            onPress={() => {}}
             activeOpacity={0.7}
             disabled={uploading}
           >
-            <Ionicons name="chevron-back" size={24} color="#000000" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Voice Recording..</Text>
-          <View style={styles.headerSpacer} />
-        </View>
-
-        {/* Main content */}
-        <View style={styles.mainSection}>
-          <Text style={styles.instruction}>Go ahead I'm Listening</Text>
-
-          {/* Central orb / glowing area */}
-          <View style={styles.orbContainer}>
-            <View style={styles.orbBlur1} />
-            <View style={styles.orbBlur2} />
-            <View style={styles.orbCenter}>
-              <LinearGradient
-                colors={['rgba(174, 108, 255, 0.4)', 'rgba(112, 202, 255, 0.4)', 'rgba(255, 200, 230, 0.3)']}
-                style={styles.orbGradient}
-              />
+            <View style={styles.controlBtnInner}>
+              <Ionicons name="keypad-outline" size={24} color="#2B7FFF" />
             </View>
-          </View>
+          </TouchableOpacity>
 
-          {/* Status text */}
-          <View style={styles.statusSection}>
-            <Text style={styles.statusTitle}>
-              {uploading ? 'Saving & transcribing…' : "I'm listening..."}
-            </Text>
-            <Text style={styles.statusSubtitle}>
-              {uploading
-                ? 'Please wait'
-                : "I'm capturing your conversation, organizing key notes, and saving the transcript live."}
-            </Text>
-          </View>
-
-          {/* Bottom controls */}
-          <View style={[styles.controls, { bottom: insets.bottom + 100 }]}>
-            <TouchableOpacity
-              style={styles.controlBtn}
-              onPress={() => {}}
-              activeOpacity={0.7}
-              disabled={uploading}
-            >
-              <View style={styles.controlBtnInner}>
-                <Ionicons name="keypad-outline" size={24} color="#2B7FFF" />
+          <TouchableOpacity
+            style={[styles.micBtnWrap, (isRecording || isPaused) && styles.micBtnWrapActive]}
+            onPress={handleMicPress}
+            activeOpacity={0.85}
+            disabled={uploading}
+          >
+            {uploading ? (
+              <View style={styles.micBtn}>
+                <ActivityIndicator size="small" color="#FFFFFF" />
               </View>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.micBtnWrap}
-              onPress={stopAndSave}
-              activeOpacity={0.85}
-              disabled={uploading}
-            >
-              {uploading ? (
-                <View style={styles.micBtn}>
-                  <ActivityIndicator size="small" color="#FFFFFF" />
-                </View>
-              ) : (
-                <>
-                  <View style={styles.micRing3} />
-                  <View style={styles.micRing2} />
-                  <View style={styles.micRing1} />
-                  <LinearGradient
-                    colors={['#035BFA', '#4084FF', '#658FDB']}
-                    start={{ x: 0.5, y: 0 }}
-                    end={{ x: 0.5, y: 1 }}
-                    style={styles.micBtn}
-                  >
+            ) : (
+              <>
+                {(isRecording || isPaused) && (
+                  <>
+                    <View style={styles.micRing3} />
+                    <View style={styles.micRing2} />
+                    <View style={styles.micRing1} />
+                  </>
+                )}
+                <LinearGradient
+                  colors={['#035BFA', '#4084FF', '#658FDB']}
+                  start={{ x: 0.5, y: 0 }}
+                  end={{ x: 0.5, y: 1 }}
+                  style={styles.micBtn}
+                >
+                  {isRecording ? (
+                    <Ionicons name="pause" size={30} color="#FFFFFF" />
+                  ) : (
                     <Ionicons name="mic" size={30} color="#FFFFFF" />
-                  </LinearGradient>
-                </>
-              )}
-            </TouchableOpacity>
+                  )}
+                </LinearGradient>
+              </>
+            )}
+          </TouchableOpacity>
 
-            <TouchableOpacity
-              style={styles.controlBtn}
-              onPress={cancelRecording}
-              activeOpacity={0.7}
-              disabled={uploading}
-            >
-              <View style={styles.controlBtnInner}>
-                <Ionicons name="close" size={28} color="#2B7FFF" />
-              </View>
-            </TouchableOpacity>
-          </View>
+          <TouchableOpacity
+            style={[styles.controlBtn, !hasRecording && styles.controlBtnMuted]}
+            onPress={hasRecording ? stopAndSave : undefined}
+            activeOpacity={0.7}
+            disabled={uploading || !hasRecording}
+          >
+            <View style={styles.controlBtnInner}>
+              <Ionicons name="stop" size={26} color={hasRecording ? '#2B7FFF' : '#B0BEC5'} />
+            </View>
+          </TouchableOpacity>
         </View>
       </View>
+    </View>
   );
 }
 
@@ -282,6 +466,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  headerCenter: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   headerTitle: {
     fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-medium',
     fontWeight: '600',
@@ -289,6 +478,12 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     color: '#000000',
     textAlign: 'center',
+  },
+  durationText: {
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
+    fontSize: 13,
+    color: '#64748B',
+    marginTop: 2,
   },
   headerSpacer: {
     width: 24,
@@ -401,6 +596,12 @@ const styles = StyleSheet.create({
     height: 156,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  micBtnWrapActive: {
+    opacity: 1,
+  },
+  controlBtnMuted: {
+    opacity: 0.7,
   },
   micRing1: {
     position: 'absolute',

@@ -12,9 +12,11 @@ import {
   Dimensions,
   ScrollView,
 } from 'react-native';
+import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
+import Svg, { Path } from 'react-native-svg';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
 import { homeColors } from '../theme/homeColors';
@@ -44,10 +46,87 @@ export default function HomeScreen() {
   const { user, signOut } = useAuth();
   const insets = useSafeAreaInsets();
   const [activeTab, setActiveTab] = useState('assistant');
+  const [assistantResetKey, setAssistantResetKey] = useState(0);
+  const [isAssistantMainView, setIsAssistantMainView] = useState(true);
   const [sidebarVisible, setSidebarVisible] = useState(false);
   const [sidebarMounted, setSidebarMounted] = useState(false);
   const [avatarMenuVisible, setAvatarMenuVisible] = useState(false);
+  const [startInChatView, setStartInChatView] = useState(false);
   const slideAnim = useRef(new Animated.Value(-242)).current;
+
+  // Chats: { id, title, messages: [{ role, text, isLoading? }] }
+  const [chats, setChats] = useState(() => [
+    {
+      id: 'chat-1',
+      title: 'My Yesterday chat history of..',
+      messages: [
+        { role: 'user', text: 'Summarize my meeting from yesterday' },
+        { role: 'assistant', text: 'Here’s a summary of your meeting...' },
+      ],
+    },
+    {
+      id: 'chat-2',
+      title: 'My Today chat history one..',
+      messages: [
+        { role: 'user', text: 'What were the action items?' },
+        { role: 'assistant', text: 'The main action items were...' },
+      ],
+    },
+    {
+      id: 'chat-3',
+      title: 'During my meeting chat on..',
+      messages: [
+        { role: 'user', text: 'Help me with the transcript' },
+        { role: 'assistant', text: 'Searching precise transcri...', isLoading: true },
+      ],
+    },
+  ]);
+  const [currentChatId, setCurrentChatId] = useState(null);
+
+  const currentMessages = currentChatId
+    ? (chats.find((c) => c.id === currentChatId)?.messages ?? [])
+    : [];
+
+  const handleNewChat = () => {
+    closeSidebar();
+    setActiveTab('assistant');
+    setCurrentChatId(null);
+    setStartInChatView(true);
+    setAssistantResetKey((k) => k + 1);
+  };
+
+  const handleSelectChat = (chatId) => {
+    closeSidebar();
+    setActiveTab('assistant');
+    setCurrentChatId(chatId);
+    setStartInChatView(false);
+    setAssistantResetKey((k) => k + 1);
+  };
+
+  const handleSendMessage = (text) => {
+    const trimmed = text?.trim();
+    if (!trimmed) return;
+    const userMsg = { role: 'user', text: trimmed };
+    const assistantPlaceholder = { role: 'assistant', text: 'Searching precise transcri...', isLoading: true };
+
+    if (currentChatId) {
+      setChats((prev) =>
+        prev.map((c) =>
+          c.id === currentChatId
+            ? { ...c, messages: [...c.messages, userMsg, assistantPlaceholder] }
+            : c
+        )
+      );
+    } else {
+      const newId = `chat-${Date.now()}`;
+      const title = trimmed.length > 40 ? `${trimmed.slice(0, 40)}..` : trimmed;
+      setChats((prev) => [
+        { id: newId, title, messages: [userMsg, assistantPlaceholder] },
+        ...prev,
+      ]);
+      setCurrentChatId(newId);
+    }
+  };
 
   useEffect(() => {
     if (sidebarVisible) {
@@ -86,21 +165,20 @@ export default function HomeScreen() {
     navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
   };
 
-  const chatHistory = [
-    'My Yesterday chat history of..',
-    'My Today chat history one..',
-    'During my meeting chat on..',
-    'My Today chat history one..',
-    'My Yesterday chat history of..',
-  ];
-
   const renderContent = () => {
     switch (activeTab) {
       case 'assistant':
         return (
           <AssistantView
+            key={`assistant-${assistantResetKey}`}
             onSwitchToTranscript={() => setActiveTab('transcript')}
             onStartRecording={() => navigation.navigate('VoiceRecording')}
+            onMainViewChange={setIsAssistantMainView}
+            startInChatView={startInChatView}
+            onConsumedNewChat={() => setStartInChatView(false)}
+            messages={currentMessages}
+            onSendMessage={handleSendMessage}
+            currentChatId={currentChatId}
           />
         );
       case 'taskbar':
@@ -112,8 +190,15 @@ export default function HomeScreen() {
       default:
         return (
           <AssistantView
+            key={`assistant-${assistantResetKey}`}
             onSwitchToTranscript={() => setActiveTab('transcript')}
             onStartRecording={() => navigation.navigate('VoiceRecording')}
+            onMainViewChange={setIsAssistantMainView}
+            startInChatView={startInChatView}
+            onConsumedNewChat={() => setStartInChatView(false)}
+            messages={currentMessages}
+            onSendMessage={handleSendMessage}
+            currentChatId={currentChatId}
           />
         );
     }
@@ -124,7 +209,7 @@ export default function HomeScreen() {
       <StatusBar style="dark" />
       <View style={[StyleSheet.absoluteFill, styles.bgFill]} pointerEvents="none" />
 
-      {/* Header with hamburger (assistant only) and avatar */}
+      {/* Header: hamburger/back + title/avatar */}
       <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
         {activeTab === 'assistant' ? (
           <TouchableOpacity
@@ -134,18 +219,29 @@ export default function HomeScreen() {
           >
             <Ionicons name="menu" size={26} color={homeColors.textPrimary} />
           </TouchableOpacity>
+        ) : activeTab === 'transcript' ? (
+          <TouchableOpacity
+            style={styles.transcriptHeaderLeft}
+            onPress={() => setActiveTab('assistant')}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="chevron-back" size={24} color="#000" />
+            <Text style={styles.transcriptHeaderTitle}>Transcript..</Text>
+          </TouchableOpacity>
         ) : (
           <View style={styles.hamburgerBtn} />
         )}
-        <TouchableOpacity
-          style={styles.avatarWrap}
-          onPress={() => setAvatarMenuVisible(true)}
-          activeOpacity={0.8}
-        >
-          <View style={[styles.avatar, { backgroundColor: homeColors.accent }]}>
-            <Text style={styles.avatarText}>{getInitials(user?.name)}</Text>
-          </View>
-        </TouchableOpacity>
+        {activeTab !== 'transcript' && (
+          <TouchableOpacity
+            style={styles.avatarWrap}
+            onPress={() => setAvatarMenuVisible(true)}
+            activeOpacity={0.8}
+          >
+            <View style={[styles.avatar, { backgroundColor: homeColors.accent }]}>
+              <Text style={styles.avatarText}>{getInitials(user?.name)}</Text>
+            </View>
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* Main content area */}
@@ -154,12 +250,21 @@ export default function HomeScreen() {
       {/* Bottom navigation - rgba(255,255,255,0.13), borderRadius 20 */}
       <View style={[styles.tabBar, { marginBottom: insets.bottom + 16 }]}>
         {TABS.map((tab) => {
-          const isActive = activeTab === tab.id;
+          const isActive =
+            tab.id === 'assistant'
+              ? activeTab === 'assistant' && isAssistantMainView
+              : activeTab === tab.id;
           return (
             <TouchableOpacity
               key={tab.id}
               style={[styles.glassButton, isActive && styles.glassButtonActive]}
-              onPress={() => setActiveTab(tab.id)}
+              onPress={() => {
+                if (tab.id === 'assistant') {
+                  setAssistantResetKey((k) => k + 1);
+                  setCurrentChatId(null);
+                }
+                setActiveTab(tab.id);
+              }}
               activeOpacity={0.85}
             >
               <Ionicons
@@ -220,39 +325,58 @@ export default function HomeScreen() {
                 </TouchableOpacity>
               </View>
 
-              {/* New Chat button */}
+              {/* New Chat button - glass style */}
               <TouchableOpacity
-                style={styles.newChatBtn}
+                style={styles.newChatBtnWrap}
                 activeOpacity={0.8}
+                onPress={handleNewChat}
               >
-                <Ionicons name="pencil-outline" size={20} color="#99A1AF" />
-                <Text style={styles.newChatText}>New Chat..</Text>
+                <BlurView intensity={60} tint="light" style={StyleSheet.absoluteFill} />
+                <View style={styles.newChatGlassOverlay} pointerEvents="none" />
+                <View style={styles.newChatBtn}>
+                  <Svg width={20} height={20} viewBox="0 0 21 21" fill="none">
+                    <Path
+                      d="M14.612 2.98725L16.299 1.29925C16.6507 0.94757 17.1277 0.75 17.625 0.75C18.1223 0.75 18.5993 0.94757 18.951 1.29925C19.3027 1.65092 19.5002 2.1279 19.5002 2.62525C19.5002 3.12259 19.3027 3.59957 18.951 3.95125L8.332 14.5702C7.80332 15.0986 7.15137 15.487 6.435 15.7002L3.75 16.5002L4.55 13.8152C4.76328 13.0989 5.15163 12.4469 5.68 11.9182L14.612 2.98725ZM14.612 2.98725L17.25 5.62525M15.75 12.5002V17.2502C15.75 17.847 15.5129 18.4193 15.091 18.8412C14.669 19.2632 14.0967 19.5002 13.5 19.5002H3C2.40326 19.5002 1.83097 19.2632 1.40901 18.8412C0.987053 18.4193 0.75 17.847 0.75 17.2502V6.75025C0.75 6.15351 0.987053 5.58121 1.40901 5.15926C1.83097 4.7373 2.40326 4.50025 3 4.50025H7.75"
+                      stroke="#99A1AF"
+                      strokeWidth={1.5}
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </Svg>
+                  <Text style={styles.newChatText}>New Chat..</Text>
+                </View>
               </TouchableOpacity>
 
               {/* Chat History section */}
                 <View style={styles.chatHistorySection}>
                 <Text style={styles.chatHistoryTitle}>Chat History</Text>
-                <View style={styles.searchBar}>
-                  <Ionicons name="search" size={20} color="#99A1AF" />
-                  <TextInput
-                    style={styles.searchInput}
-                    placeholder="Search"
-                    placeholderTextColor="#99A1AF"
-                  />
+                <View style={styles.searchBarWrap}>
+                  <BlurView intensity={60} tint="light" style={StyleSheet.absoluteFill} />
+                  <View style={styles.searchGlassOverlay} pointerEvents="none" />
+                  <View style={styles.searchBar}>
+                    <Ionicons name="search" size={20} color="#99A1AF" />
+                    <TextInput
+                      style={styles.searchInput}
+                      placeholder="Search"
+                      placeholderTextColor="#99A1AF"
+                      underlineColorAndroid="transparent"
+                    />
+                  </View>
                 </View>
                 <ScrollView
                   style={styles.chatListScroll}
                   showsVerticalScrollIndicator={false}
                 >
                   <View style={styles.chatList}>
-                    {chatHistory.map((item, i) => (
+                    {chats.map((chat) => (
                       <TouchableOpacity
-                        key={i}
-                        style={styles.chatItem}
+                        key={chat.id}
+                        style={[styles.chatItem, currentChatId === chat.id && styles.chatItemActive]}
                         activeOpacity={0.7}
+                        onPress={() => handleSelectChat(chat.id)}
                       >
-                        <Text style={styles.chatItemText} numberOfLines={1}>
-                          {item}
+                        <Text style={[styles.chatItemText, currentChatId === chat.id && styles.chatItemTextActive]} numberOfLines={1}>
+                          {chat.title}
                         </Text>
                       </TouchableOpacity>
                     ))}
@@ -312,6 +436,18 @@ const styles = StyleSheet.create({
   },
   hamburgerBtn: {
     padding: 4,
+  },
+  transcriptHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  transcriptHeaderTitle: {
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
+    fontWeight: '600',
+    fontSize: 18,
+    lineHeight: 22,
+    color: '#000000',
   },
   avatarWrap: {
   },
@@ -384,7 +520,7 @@ const styles = StyleSheet.create({
     left: 0,
     width: 242,
     flexDirection: 'column',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#F5F6F8',
     paddingHorizontal: 16,
     ...Platform.select({
       ios: {
@@ -416,6 +552,29 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     color: '#000000',
   },
+  newChatBtnWrap: {
+    borderRadius: 20,
+    marginBottom: 20,
+    overflow: 'hidden',
+    borderWidth: 1.5,
+    borderColor: 'rgba(153, 161, 175, 0.35)',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.1,
+        shadowRadius: 12,
+      },
+      android: {
+        elevation: 6,
+      },
+    }),
+  },
+  newChatGlassOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(255, 255, 255, 0.4)',
+    borderRadius: 20,
+  },
   newChatBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -423,10 +582,6 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     paddingHorizontal: 36,
     gap: 10,
-    borderWidth: 1,
-    borderColor: 'rgba(153, 161, 175, 0.29)',
-    borderRadius: 20,
-    marginBottom: 20,
   },
   newChatText: {
     fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
@@ -447,17 +602,35 @@ const styles = StyleSheet.create({
     color: '#000000',
     marginBottom: 20,
   },
+  searchBarWrap: {
+    borderRadius: 20,
+    marginBottom: 20,
+    overflow: 'hidden',
+    borderWidth: 1.5,
+    borderColor: 'rgba(153, 161, 175, 0.35)',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.1,
+        shadowRadius: 12,
+      },
+      android: {
+        elevation: 6,
+      },
+    }),
+  },
+  searchGlassOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(255, 255, 255, 0.4)',
+    borderRadius: 20,
+  },
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 16,
-    paddingHorizontal: 36,
+    paddingHorizontal: 20,
     gap: 10,
-    backgroundColor: 'rgba(0, 0, 0, 0.004)',
-    borderWidth: 1,
-    borderColor: 'rgba(153, 161, 175, 0.29)',
-    borderRadius: 20,
-    marginBottom: 20,
   },
   searchInput: {
     flex: 1,
@@ -465,6 +638,16 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     color: '#000',
     padding: 0,
+    ...Platform.select({
+      web: {
+        outlineStyle: 'none',
+        outlineWidth: 0,
+        outlineColor: 'transparent',
+      },
+      android: {
+        textAlignVertical: 'center',
+      },
+    }),
   },
   chatListScroll: {
     flex: 1,
@@ -482,6 +665,16 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 22,
     color: '#000000',
+  },
+  chatItemActive: {
+    backgroundColor: 'rgba(152, 16, 250, 0.08)',
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    marginHorizontal: -8,
+  },
+  chatItemTextActive: {
+    color: homeColors.accent,
+    fontWeight: '600',
   },
   avatarMenuOverlay: {
     flex: 1,

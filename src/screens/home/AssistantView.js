@@ -37,12 +37,25 @@ function getInitials(name) {
   return name.slice(0, 1).toUpperCase();
 }
 
-export default function AssistantView({ onUploadSuccess, onSwitchToTranscript, onStartRecording }) {
+export default function AssistantView({
+  onUploadSuccess,
+  onSwitchToTranscript,
+  onStartRecording,
+  onMainViewChange,
+  startInChatView = false,
+  onConsumedNewChat,
+  messages: messagesProp,
+  onSendMessage: onSendMessageProp,
+}) {
   const { token, user } = useAuth();
   const userName = user?.name?.split?.(' ')?.[0] || 'there';
   const [searchQuery, setSearchQuery] = useState('');
-  const [messages, setMessages] = useState([]);
+  const [localMessages, setLocalMessages] = useState([]);
+  const [forceShowChat, setForceShowChat] = useState(false);
   const chatScrollRef = React.useRef(null);
+
+  const isControlled = onSendMessageProp != null;
+  const messages = isControlled ? (messagesProp ?? []) : localMessages;
   const [recording, setRecording] = useState(null);
   const [recordingState, setRecordingState] = useState(RecordingState.IDLE);
   const [recordingDuration, setRecordingDuration] = useState(0);
@@ -211,7 +224,13 @@ export default function AssistantView({ onUploadSuccess, onSwitchToTranscript, o
   const handleSendMessage = () => {
     const trimmed = searchQuery.trim();
     if (!trimmed || recordingState !== RecordingState.IDLE) return;
-    setMessages((prev) => [
+    if (isControlled && onSendMessageProp) {
+      onSendMessageProp(trimmed);
+      setSearchQuery('');
+      setTimeout(() => chatScrollRef.current?.scrollToEnd?.({ animated: true }), 100);
+      return;
+    }
+    setLocalMessages((prev) => [
       ...prev,
       { role: 'user', text: trimmed },
       { role: 'assistant', text: 'Searching precise transcri...', isLoading: true },
@@ -220,7 +239,18 @@ export default function AssistantView({ onUploadSuccess, onSwitchToTranscript, o
     setTimeout(() => chatScrollRef.current?.scrollToEnd?.({ animated: true }), 100);
   };
 
-  const showChat = messages.length > 0;
+  const showChat = messages.length > 0 || forceShowChat;
+
+  useEffect(() => {
+    if (startInChatView) {
+      setForceShowChat(true);
+      onConsumedNewChat?.();
+    }
+  }, [startInChatView, onConsumedNewChat]);
+
+  useEffect(() => {
+    onMainViewChange?.(!showChat);
+  }, [showChat, onMainViewChange]);
 
   return (
     <KeyboardAvoidingView
