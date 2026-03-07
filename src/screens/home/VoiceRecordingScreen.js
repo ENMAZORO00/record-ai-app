@@ -140,18 +140,19 @@ export default function VoiceRecordingScreen() {
         durationRef.current = null;
       }
       await rec.stopAndUnloadAsync();
-      const uri = rec.getURI();
+      const uri = rec.getURI?.();
+      const blob = rec.getBlob?.();
       setRecording(null);
       setRecordingState(RecordingState.IDLE);
 
-      if (uri && token) {
+      const hasData = uri || blob;
+      if (hasData && token) {
         setUploading(true);
         try {
-          await uploadRecording(token, {
-            uri,
-            type: 'audio/m4a',
-            name: `recording-${Date.now()}.m4a`,
-          });
+          const filePayload = blob
+            ? { blob, type: rec.getMimeType?.() || 'audio/webm', name: `recording-${Date.now()}.webm` }
+            : { uri, type: 'audio/m4a', name: `recording-${Date.now()}.m4a` };
+          await uploadRecording(token, filePayload);
           navigation.navigate('Home', { switchToTranscript: true });
           Alert.alert(
             'Recording saved',
@@ -163,7 +164,7 @@ export default function VoiceRecordingScreen() {
         } finally {
           setUploading(false);
         }
-      } else if (uri && !token) {
+      } else if (hasData && !token) {
         Alert.alert('Not signed in', 'Sign in to save and transcribe recordings.');
         navigation.goBack();
       } else {
@@ -420,6 +421,8 @@ export default function VoiceRecordingScreen() {
                 >
                   {isRecording ? (
                     <Ionicons name="pause" size={30} color="#FFFFFF" />
+                  ) : isPaused ? (
+                    <Ionicons name="play" size={30} color="#FFFFFF" />
                   ) : (
                     <Ionicons name="mic" size={30} color="#FFFFFF" />
                   )}

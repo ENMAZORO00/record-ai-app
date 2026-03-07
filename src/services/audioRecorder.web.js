@@ -1,11 +1,25 @@
 /**
- * Web stub for audio recording - expo-av Recording is not supported on web.
- * Use this to avoid bundling expo-av on web (fixes "Unable to resolve Recording.types").
+ * Web audio recording via MediaRecorder API.
+ * Supports start, pause, resume, stop. Outputs webm.
  */
-export const isRecordingSupported = false;
+let mediaStream = null;
+
+export const isRecordingSupported = true;
 
 export async function requestPermissionsAsync() {
-  return { status: 'undetermined', granted: false };
+  if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
+    return { status: 'denied', granted: false };
+  }
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    stream.getTracks().forEach((t) => t.stop());
+    return { status: 'granted', granted: true };
+  } catch (err) {
+    if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+      return { status: 'denied', granted: false };
+    }
+    return { status: 'undetermined', granted: false };
+  }
 }
 
 export async function setAudioModeAsync() {
@@ -14,8 +28,77 @@ export async function setAudioModeAsync() {
 
 export const RecordingOptionsPresets = { HIGH_QUALITY: {} };
 
+const supportsPause =
+  typeof MediaRecorder !== 'undefined' && typeof MediaRecorder.prototype?.pause === 'function';
+
 export const Recording = {
   createAsync: async () => {
-    throw new Error('Audio recording is not supported on web. Please use the iOS or Android app.');
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    mediaStream = stream;
+
+    const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+      ? 'audio/webm;codecs=opus'
+      : 'audio/webm';
+    const mediaRecorder = new MediaRecorder(stream, { mimeType, audioBitsPerSecond: 128000 });
+    const chunks = [];
+    mediaRecorder.ondataavailable = (e) => {
+      if (e.data && e.data.size > 0) chunks.push(e.data);
+    };
+
+    let state = 'recording';
+
+    await new Promise((resolve, reject) => {
+      mediaRecorder.onstart = () => resolve();
+      mediaRecorder.onerror = (e) => reject(e.error || new Error('Recording failed'));
+      mediaRecorder.start(100);
+    });
+
+    const recording = {
+      async pauseAsync() {
+        if (state !== 'recording') return;
+        if (supportsPause && mediaRecorder.state === 'recording') {
+          mediaRecorder.pause();
+          state = 'paused';
+        }
+      },
+
+      async startAsync() {
+        if (state !== 'paused') return;
+        if (supportsPause && mediaRecorder.state === 'paused') {
+          mediaRecorder.resume();
+          state = 'recording';
+        }
+      },
+
+      async stopAndUnloadAsync() {
+        if (state === 'stopped') return;
+        state = 'stopped';
+        return new Promise((resolve) => {
+          mediaRecorder.onstop = () => {
+            stream.getTracks().forEach((t) => t.stop());
+            mediaStream = null;
+            resolve();
+          };
+          mediaRecorder.stop();
+        });
+      },
+
+      getURI() {
+        if (chunks.length === 0) return null;
+        const blob = new Blob(chunks, { type: mediaRecorder.mimeType || 'audio/webm' });
+        return URL.createObjectURL(blob);
+      },
+
+      getBlob() {
+        if (chunks.length === 0) return null;
+        return new Blob(chunks, { type: mediaRecorder.mimeType || 'audio/webm' });
+      },
+
+      getMimeType() {
+        return mediaRecorder.mimeType || 'audio/webm';
+      },
+    };
+
+    return { recording };
   },
 };

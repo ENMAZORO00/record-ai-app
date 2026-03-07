@@ -387,6 +387,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#FAFBFD',
+    ...Platform.select({ web: { minHeight: '100vh' } }),
   },
   bgFill: {
     backgroundColor: '#FAFBFD',
@@ -410,6 +411,7 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
+    ...Platform.select({ web: { minHeight: 0 } }), // Allows flex child to shrink/expand on web
   },
   tabBar: {
     flexDirection: 'row',

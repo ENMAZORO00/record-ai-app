@@ -67,16 +67,20 @@ export async function getTranscript(token, id) {
 /**
  * Upload recording file to backend. FormData with field "recording".
  * @param {string} token - Auth token
- * @param {object} file - { uri, type?, name? } (React Native file object for FormData)
+ * @param {object} file - { uri, type?, name? } (native) or { blob, type?, name? } (web)
  * @returns {Promise<{ id, recordingUrl, status }>}
  */
 export async function uploadRecording(token, file) {
   const formData = new FormData();
-  formData.append('recording', {
-    uri: file.uri,
-    type: file.type || 'audio/m4a',
-    name: file.name || 'recording.m4a',
-  });
+  if (file.blob) {
+    formData.append('recording', file.blob, file.name || 'recording.webm');
+  } else {
+    formData.append('recording', {
+      uri: file.uri,
+      type: file.type || 'audio/m4a',
+      name: file.name || 'recording.m4a',
+    });
+  }
   const res = await fetch(`${getBaseUrl()}/transcripts/upload`, {
     method: 'POST',
     headers: {
