@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -14,6 +14,8 @@ import {
   Platform,
   Dimensions,
 } from 'react-native';
+import { BlurView } from 'expo-blur';
+import { Audio } from 'expo-av';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import { getTranscripts } from '../../services/api';
@@ -105,6 +107,92 @@ function TranscriptCard({ item, onPress }) {
 
 function ConversationDetail({ transcript, onClose }) {
   const lines = transcript?.Conversation ?? [];
+  const recordingUrl = transcript?.recordingUrl;
+  const [sound, setSound] = useState(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [audioError, setAudioError] = useState(null);
+  const isMounted = useRef(true);
+
+  useEffect(() => {
+    isMounted.current = true;
+    return () => {
+      isMounted.current = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!recordingUrl) {
+      setSound(null);
+      setIsPlaying(false);
+      setAudioError(null);
+      return undefined;
+    }
+    let cancelled = false;
+    let loadedSound = null;
+    (async () => {
+      try {
+        await Audio.setAudioModeAsync({
+          playsInSilentModeIOS: true,
+          staysActiveInBackground: false,
+          shouldDuckAndroid: true,
+          playThroughEarpieceAndroid: false,
+        });
+        const { sound: newSound } = await Audio.Sound.createAsync(
+          { uri: recordingUrl },
+          { shouldPlay: false }
+        );
+        loadedSound = newSound;
+        if (cancelled || !isMounted.current) {
+          newSound.unloadAsync();
+          return;
+        }
+        setSound(newSound);
+        setAudioError(null);
+      } catch (err) {
+        if (!cancelled && isMounted.current) {
+          setAudioError(err?.message || 'Could not load audio');
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+      if (loadedSound) {
+        loadedSound.unloadAsync();
+      }
+      setSound(null);
+      setIsPlaying(false);
+    };
+  }, [recordingUrl]);
+
+  const togglePlayPause = async () => {
+    if (!sound) return;
+    try {
+      const status = await sound.getStatusAsync();
+      if (status.isLoaded) {
+        if (status.isPlaying) {
+          await sound.pauseAsync();
+          setIsPlaying(false);
+        } else {
+          await sound.playAsync();
+          setIsPlaying(true);
+        }
+      }
+    } catch (err) {
+      setAudioError(err?.message || 'Playback failed');
+    }
+  };
+
+  useEffect(() => {
+    if (!sound) return;
+    const sub = sound.addListener((status) => {
+      if (status.isLoaded && !status.isPlaying && status.didJustFinishAndNotReset) {
+        setIsPlaying(false);
+        sound.setPositionAsync(0);
+      }
+    });
+    return () => sub.remove();
+  }, [sound]);
+
   return (
     <Modal visible={!!transcript} transparent animationType="slide">
       <Pressable style={styles.modalOverlay} onPress={onClose}>
@@ -122,6 +210,29 @@ function ConversationDetail({ transcript, onClose }) {
             style={styles.detailScroll}
             contentContainerStyle={styles.detailScrollContent}
           >
+            {recordingUrl && (
+              <View style={styles.audioSection}>
+                <View style={styles.audioPlayer}>
+                  <TouchableOpacity
+                    style={styles.audioPlayBtn}
+                    onPress={togglePlayPause}
+                    disabled={!!audioError}
+                  >
+                    <Ionicons
+                      name={isPlaying ? 'pause' : 'play'}
+                      size={24}
+                      color="#fff"
+                    />
+                  </TouchableOpacity>
+                  <View style={styles.audioInfo}>
+                    <Ionicons name="musical-notes" size={20} color={homeColors.accent} />
+                    <Text style={styles.audioLabel}>
+                      {audioError ? audioError : 'Recording'}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+            )}
             {lines.length === 0 ? (
               <Text style={styles.detailEmpty}>
                 {transcript?.status === 'processing'
@@ -195,18 +306,23 @@ export default function TranscriptView() {
     <View style={styles.container}>
       {/* Top spacer - matches Task screen header padding */}
       <View style={styles.topSpacer} />
-      {/* Search bar */}
+      {/* Search bar - matches sidebar in Assistant screen */}
       <View style={styles.searchWrapper}>
-        <View style={styles.searchBar}>
-          <Ionicons name="search" size={20} color="#000" style={styles.searchIcon} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search"
-            placeholderTextColor="#99A1AF"
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            returnKeyType="search"
-          />
+        <View style={styles.searchBarWrap}>
+          <BlurView intensity={60} tint="light" style={StyleSheet.absoluteFill} />
+          <View style={styles.searchGlassOverlay} pointerEvents="none" />
+          <View style={styles.searchBar}>
+            <Ionicons name="search" size={20} color="#99A1AF" />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search"
+              placeholderTextColor="#99A1AF"
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              returnKeyType="search"
+              underlineColorAndroid="transparent"
+            />
+          </View>
         </View>
       </View>
 
@@ -263,31 +379,47 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     marginTop: 0,
     marginBottom: 16,
-    alignItems: 'center',
+  },
+  searchBarWrap: {
+    borderRadius: 20,
+    overflow: 'hidden',
+    borderWidth: 1.5,
+    borderColor: 'rgba(153, 161, 175, 0.35)',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.1,
+        shadowRadius: 12,
+      },
+      android: {
+        elevation: 6,
+      },
+    }),
+  },
+  searchGlassOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(255, 255, 255, 0.4)',
+    borderRadius: 20,
   },
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    width: Math.min(252, width - 80),
-    height: 44,
-    paddingHorizontal: 16,
+    paddingVertical: 16,
+    paddingHorizontal: 20,
     gap: 10,
-    backgroundColor: 'rgba(152, 16, 250, 0.08)',
-    borderWidth: 1,
-    borderColor: 'rgba(153, 161, 175, 0.35)',
-    borderRadius: 20,
-  },
-  searchIcon: {
-    marginRight: 4,
   },
   searchInput: {
     flex: 1,
-    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
-    fontWeight: '500',
     fontSize: 14,
     lineHeight: 22,
     color: '#000',
     padding: 0,
+    ...Platform.select({
+      web: { outlineStyle: 'none', outlineWidth: 0, outlineColor: 'transparent' },
+      android: { textAlignVertical: 'center' },
+      default: {},
+    }),
   },
   listContent: {
     paddingHorizontal: 16,
@@ -302,7 +434,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 12,
     borderWidth: 1,
-    borderColor: 'rgba(0, 0, 0, 0.06)',
+    borderColor: 'rgba(0, 0, 0, 0.2)',
     ...Platform.select({
       ios: {
         shadowColor: '#9810FA',
@@ -327,15 +459,16 @@ const styles = StyleSheet.create({
     color: '#000000',
   },
   cardMeta: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: 'column',
+    alignItems: 'flex-start',
     marginTop: 4,
+    gap: 8,
   },
   cardMetaLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 16,
+    justifyContent: 'space-between',
+    width: '100%',
   },
   metaItem: {
     flexDirection: 'row',
@@ -345,7 +478,7 @@ const styles = StyleSheet.create({
   metaText: {
     fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
     fontWeight: '400',
-    fontSize: 10,
+    fontSize: 13,
     lineHeight: 22,
     color: '#99A1AF',
   },
@@ -357,7 +490,7 @@ const styles = StyleSheet.create({
   viewTranscriptText: {
     fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
     fontWeight: '400',
-    fontSize: 10,
+    fontSize: 13,
     lineHeight: 22,
     color: '#99A1AF',
   },
@@ -430,6 +563,39 @@ const styles = StyleSheet.create({
   detailScrollContent: {
     padding: 20,
     paddingBottom: 40,
+  },
+  audioSection: {
+    marginBottom: 20,
+  },
+  audioPlayer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderRadius: 12,
+    backgroundColor: 'rgba(152, 16, 250, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(152, 16, 250, 0.2)',
+  },
+  audioPlayBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: homeColors.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  audioInfo: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  audioLabel: {
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
+    fontSize: 14,
+    fontWeight: '500',
+    color: homeColors.textPrimary,
   },
   detailEmpty: {
     fontSize: 15,
