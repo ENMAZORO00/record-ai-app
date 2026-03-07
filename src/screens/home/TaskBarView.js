@@ -6,12 +6,15 @@ import {
   TouchableOpacity,
   ScrollView,
   Platform,
+  Modal,
+  TextInput,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { homeColors } from '../../theme/homeColors';
 
-// Upcoming task card - circle toggles completion (Notes app style)
-function UpcomingTaskCard({ text, completed, onToggle }) {
+// Upcoming task card - circle toggles completion, delete button (Notes app style)
+function UpcomingTaskCard({ text, completed, onToggle, onDelete }) {
   return (
     <View style={[styles.taskCard, completed && styles.taskCardComplete]}>
       <TouchableOpacity
@@ -32,18 +35,34 @@ function UpcomingTaskCard({ text, completed, onToggle }) {
       >
         {text}
       </Text>
+      <TouchableOpacity
+        style={styles.deleteBtn}
+        onPress={onDelete}
+        activeOpacity={0.7}
+        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+      >
+        <Ionicons name="trash-outline" size={20} color="#6A7282" />
+      </TouchableOpacity>
     </View>
   );
 }
 
-// Information note card (green dot)
-function InfoNoteCard({ text }) {
+// Information note card (green dot, delete button)
+function InfoNoteCard({ text, onDelete }) {
   return (
     <View style={[styles.taskCard, styles.infoNoteCard]}>
       <View style={styles.infoDot} />
       <Text style={styles.taskText} numberOfLines={2}>
         {text}
       </Text>
+      <TouchableOpacity
+        style={styles.deleteBtn}
+        onPress={onDelete}
+        activeOpacity={0.7}
+        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+      >
+        <Ionicons name="trash-outline" size={20} color="#6A7282" />
+      </TouchableOpacity>
     </View>
   );
 }
@@ -54,11 +73,26 @@ export default function TaskBarView() {
     { id: '2', text: 'Showcasing new design elements and style', completed: false },
     { id: '3', text: 'Showcasing new design elements and style', completed: false },
   ]);
-  const infoNotes = [
+  const [modalVisible, setModalVisible] = useState(false);
+  const [newTaskText, setNewTaskText] = useState('');
+
+  const handleAddTask = () => {
+    const trimmed = newTaskText.trim();
+    if (trimmed) {
+      setTasks((prev) => [
+        { id: String(Date.now()), text: trimmed, completed: false },
+        ...prev,
+      ]);
+      setNewTaskText('');
+      setModalVisible(false);
+    }
+  };
+
+  const [infoNotes, setInfoNotes] = useState([
     'Your Password set as Adam2029 of Discord',
     'Meeting at 12AM at 3rd wave coffee shop',
     'Passport Appointment at New York ,4th street',
-  ];
+  ]);
 
   return (
     <View style={styles.container}>
@@ -66,7 +100,11 @@ export default function TaskBarView() {
       <View style={styles.header}>
         <View style={styles.headerBtn} />
         <Text style={styles.headerTitle}>Notes</Text>
-        <TouchableOpacity style={styles.addBtn} activeOpacity={0.7}>
+        <TouchableOpacity
+          style={styles.addBtn}
+          activeOpacity={0.7}
+          onPress={() => setModalVisible(true)}
+        >
           <Ionicons name="add" size={24} color={homeColors.accent} />
         </TouchableOpacity>
       </View>
@@ -95,6 +133,7 @@ export default function TaskBarView() {
                     )
                   );
                 }}
+                onDelete={() => setTasks((prev) => prev.filter((task) => task.id !== t.id))}
               />
             ))}
           </View>
@@ -105,11 +144,70 @@ export default function TaskBarView() {
           <Text style={styles.sectionTitle}>Information Note:</Text>
           <View style={styles.cardList}>
             {infoNotes.map((text, i) => (
-              <InfoNoteCard key={i} text={text} />
+              <InfoNoteCard
+                key={i}
+                text={text}
+                onDelete={() => setInfoNotes((prev) => prev.filter((_, idx) => idx !== i))}
+              />
             ))}
           </View>
         </View>
       </ScrollView>
+
+      {/* Add Task Modal */}
+      <Modal
+        visible={modalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setModalVisible(false)}
+        >
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            style={styles.modalContainer}
+          >
+            <TouchableOpacity
+              activeOpacity={1}
+              onPress={(e) => e.stopPropagation()}
+              style={styles.modalContent}
+            >
+              <Text style={styles.modalTitle}>New Task</Text>
+              <TextInput
+                style={styles.modalInput}
+                placeholder="Describe your task..."
+                placeholderTextColor="#9CA3AF"
+                value={newTaskText}
+                onChangeText={setNewTaskText}
+                multiline
+                autoFocus
+              />
+              <View style={styles.modalActions}>
+                <TouchableOpacity
+                  style={[styles.modalBtn, styles.modalBtnCancel]}
+                  onPress={() => {
+                    setNewTaskText('');
+                    setModalVisible(false);
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.modalBtnCancelText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.modalBtn, styles.modalBtnAdd]}
+                  onPress={handleAddTask}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.modalBtnAddText}>Add</Text>
+                </TouchableOpacity>
+              </View>
+            </TouchableOpacity>
+          </KeyboardAvoidingView>
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 }
@@ -234,5 +332,96 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 22,
     color: '#000000',
+  },
+  deleteBtn: {
+    width: 36,
+    height: 36,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 8,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContainer: {
+    width: '100%',
+    paddingHorizontal: 24,
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 24,
+    width: '100%',
+    maxWidth: 360,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.06)',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.06,
+        shadowRadius: 12,
+      },
+      android: {
+        elevation: 8,
+      },
+    }),
+  },
+  modalTitle: {
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-medium',
+    fontWeight: '600',
+    fontSize: 18,
+    color: '#111827',
+    marginBottom: 20,
+    letterSpacing: -0.3,
+  },
+  modalInput: {
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.08)',
+    borderRadius: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    fontSize: 16,
+    color: '#111827',
+    minHeight: 88,
+    textAlignVertical: 'top',
+    marginBottom: 24,
+    backgroundColor: '#FAFAFA',
+  },
+  modalActions: {
+    flexDirection: 'row',
+    gap: 12,
+    justifyContent: 'flex-end',
+    paddingTop: 4,
+  },
+  modalBtn: {
+    paddingVertical: 12,
+    paddingHorizontal: 22,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+  modalBtnCancel: {
+    backgroundColor: '#FFFFFF',
+    borderColor: 'rgba(0, 0, 0, 0.12)',
+  },
+  modalBtnCancelText: {
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-medium',
+    fontWeight: '600',
+    fontSize: 16,
+    color: '#6A7282',
+  },
+  modalBtnAdd: {
+    backgroundColor: homeColors.accent,
+    borderColor: homeColors.accent,
+  },
+  modalBtnAddText: {
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-medium',
+    fontWeight: '600',
+    fontSize: 16,
+    color: '#FFFFFF',
   },
 });
