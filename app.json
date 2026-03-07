@@ -7,7 +7,7 @@
     "icon": "./assets/logo.png",
     "splash": {
       "image": "./assets/logo.png",
-      "backgroundColor": "#fdfbff",
+      "backgroundColor": "#fafafa",
       "resizeMode": "contain"
     },
     "plugins": [

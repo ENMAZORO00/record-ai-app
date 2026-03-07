@@ -37,26 +37,10 @@ export default function LoginScreen({ navigation }) {
     }
   };
 
-  const footer = (
-    <>
-      <View style={styles.footer}>
-        <Text style={styles.footerText}>Don't have an account? </Text>
-        <TouchableOpacity onPress={() => navigation.replace('SignUp')}>
-          <Text style={styles.link}>Sign Up</Text>
-        </TouchableOpacity>
-      </View>
-      <Text style={styles.legal}>
-        By continuing, you agree to our <Text style={styles.legalLink}>Terms</Text>
-        {' '}and <Text style={styles.legalLink}>Privacy Policy</Text>.
-      </Text>
-    </>
-  );
-
   return (
     <AuthLayout
       title="Welcome Back"
       showLogo
-      footer={footer}
     >
       <AuthInput
         label="Email Address"
@@ -89,29 +73,39 @@ export default function LoginScreen({ navigation }) {
         title="Sign In"
         onPress={handleLogin}
         loading={loading}
-        icon="log-in-outline"
       />
+
+      <View style={styles.footer}>
+        <Text style={styles.footerText}>Don't have an account? </Text>
+        <TouchableOpacity onPress={() => navigation.replace('SignUp')}>
+          <Text style={styles.link}>Sign Up</Text>
+        </TouchableOpacity>
+      </View>
+      <Text style={styles.legal}>
+        By continuing, you agree to our <Text style={styles.legalLink}>Terms</Text>
+        {' '}and <Text style={styles.legalLink}>Privacy Policy</Text>.
+      </Text>
     </AuthLayout>
   );
 }
 
 const styles = StyleSheet.create({
-  forgotLink: { alignSelf: 'flex-end', marginBottom: 16 },
-  forgotText: { fontSize: 14, color: authColors.link, fontWeight: '600' },
+  forgotLink: { alignSelf: 'flex-end', marginBottom: 20 },
+  forgotText: { fontSize: 15, color: authColors.textPrimary, fontWeight: '500' },
   errorText: {
     fontSize: 14,
-    color: authColors.error,
+    color: authColors.textSecondary,
     marginBottom: 16,
   },
   footer: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 24,
-    paddingVertical: 16,
+    marginTop: 28,
+    paddingVertical: 12,
   },
   footerText: { fontSize: 15, color: authColors.textSecondary },
-  link: { fontSize: 15, fontWeight: '600', color: authColors.link },
+  link: { fontSize: 15, fontWeight: '600', color: authColors.textPrimary },
   legal: {
     fontSize: 13,
     color: authColors.textMuted,
@@ -120,7 +114,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   legalLink: {
-    color: authColors.link,
-    fontWeight: '600',
+    color: authColors.textPrimary,
+    fontWeight: '500',
   },
 });

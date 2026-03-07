@@ -50,7 +50,7 @@ export default function SignUpScreen({ navigation }) {
   };
 
   const footer = (
-    <>
+    <View style={styles.footerBox}>
       <View style={styles.footer}>
         <Text style={styles.footerText}>Already have an account? </Text>
         <TouchableOpacity onPress={() => navigation.replace('Login')}>
@@ -61,7 +61,7 @@ export default function SignUpScreen({ navigation }) {
         By continuing, you agree to our <Text style={styles.legalLink}>Terms</Text>
         {' '}and <Text style={styles.legalLink}>Privacy Policy</Text>.
       </Text>
-    </>
+    </View>
   );
 
   return (
@@ -69,11 +69,9 @@ export default function SignUpScreen({ navigation }) {
       title="Join Record AI"
       subtitle="Create your account to start remembering your daily conversations"
       showLogo
-      showClose
-      onClose={() => navigation.replace('Login')}
-      footer={footer}
+      compact
     >
-      <FeatureBar text="Unlock transcripts, action items & AI-powered insights" />
+      <FeatureBar text="Unlock transcripts, action items & AI-powered insights" compact />
 
       <AuthInput
         label="Full Name"
@@ -82,6 +80,7 @@ export default function SignUpScreen({ navigation }) {
         placeholder="Full Name"
         autoCapitalize="words"
         leftIcon="person-outline"
+        compact
       />
       <AuthInput
         label="Email Address"
@@ -90,6 +89,7 @@ export default function SignUpScreen({ navigation }) {
         placeholder="Email Address"
         keyboardType="email-address"
         leftIcon="mail-outline"
+        compact
       />
       <AuthInput
         label="Password"
@@ -98,6 +98,7 @@ export default function SignUpScreen({ navigation }) {
         placeholder="Password"
         secureTextEntry
         leftIcon="lock-closed-outline"
+        compact
       />
 
       {error ? <Text style={styles.errorText}>{error}</Text> : null}
@@ -108,6 +109,8 @@ export default function SignUpScreen({ navigation }) {
         loading={loading}
         icon="person-add-outline"
       />
+
+      {footer}
     </AuthLayout>
   );
 }
@@ -116,14 +119,19 @@ const styles = StyleSheet.create({
   errorText: {
     fontSize: 14,
     color: authColors.error,
-    marginBottom: 16,
+    marginBottom: 8,
+  },
+  footerBox: {
+    marginTop: 10,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(0,0,0,0.06)',
   },
   footer: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 24,
-    paddingVertical: 16,
+    marginBottom: 6,
   },
   footerText: { fontSize: 15, color: authColors.textSecondary },
   link: { fontSize: 15, fontWeight: '600', color: authColors.link },
@@ -132,7 +140,6 @@ const styles = StyleSheet.create({
     color: authColors.textMuted,
     textAlign: 'center',
     lineHeight: 20,
-    paddingHorizontal: 16,
   },
   legalLink: {
     color: authColors.link,

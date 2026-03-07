@@ -5,8 +5,9 @@ import {
   StyleSheet,
   ActivityIndicator,
   View,
+  Platform,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import { authColors } from '../theme/authColors';
 
@@ -21,16 +22,16 @@ export default function AuthButton({
   const isPrimary = variant === 'primary';
 
   const content = (
-    <>
+    <View style={styles.content}>
       {loading ? (
-        <ActivityIndicator color={isPrimary ? '#ffffff' : authColors.gradientStart} />
+        <ActivityIndicator color={isPrimary ? authColors.textPrimary : authColors.primary} />
       ) : (
         <>
           {icon ? (
             <Ionicons
               name={icon}
               size={20}
-              color={isPrimary ? '#ffffff' : authColors.gradientStart}
+              color={isPrimary ? authColors.textPrimary : authColors.primary}
               style={styles.icon}
             />
           ) : null}
@@ -44,7 +45,7 @@ export default function AuthButton({
           </Text>
         </>
       )}
-    </>
+    </View>
   );
 
   if (isPrimary) {
@@ -53,16 +54,19 @@ export default function AuthButton({
         onPress={onPress}
         disabled={disabled || loading}
         activeOpacity={0.85}
-        style={[styles.button, (disabled || loading) && styles.disabled]}
+        style={[
+          styles.button,
+          styles.glass,
+          (disabled || loading) && styles.disabled,
+        ]}
       >
-        <LinearGradient
-          colors={[authColors.gradientStart, authColors.gradientEnd]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 0 }}
-          style={[styles.gradient, styles.gradientContent]}
+        <BlurView
+          intensity={Platform.OS === 'ios' ? 60 : 80}
+          tint="light"
+          style={styles.blur}
         >
           {content}
-        </LinearGradient>
+        </BlurView>
       </TouchableOpacity>
     );
   }
@@ -85,22 +89,29 @@ export default function AuthButton({
 
 const styles = StyleSheet.create({
   button: {
-    height: 54,
+    height: 52,
     borderRadius: 14,
     overflow: 'hidden',
-    shadowColor: authColors.gradientStart,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 6,
   },
-  gradient: {
+  glass: {
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.12)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  blur: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    overflow: 'hidden',
   },
-  gradientContent: {
+  content: {
     flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   secondary: {
     backgroundColor: authColors.cardBg,
@@ -112,7 +123,7 @@ const styles = StyleSheet.create({
   },
   disabled: { opacity: 0.6 },
   text: { fontSize: 16, fontWeight: '600' },
-  textPrimary: { color: '#ffffff' },
-  textSecondary: { color: authColors.gradientStart },
+  textPrimary: { color: authColors.textPrimary },
+  textSecondary: { color: authColors.primary },
   icon: { marginRight: 8 },
 });

@@ -1,34 +1,34 @@
 /**
  * Record AI Auth Theme
- * Purple-pink gradient design for professional auth screens
+ * iPhone-inspired premium monochrome
  */
 export const authColors = {
-  // Background
-  bgStart: '#fdfbff',
-  bgEnd: '#f5f0ff',
+  // Background - neutral
+  bg: '#f2f2f7',
 
-  // Brand gradient
-  gradientStart: '#8b5cf6',
-  gradientEnd: '#ec4899',
+  // Primary (kept for secondary buttons elsewhere, not used in login)
+  primary: '#4f46e5',
+  primaryDark: '#4338ca',
+  gradientStart: '#4f46e5',
+  gradientEnd: '#4f46e5',
 
-  // Text
-  textPrimary: '#4c1d95',
-  textSecondary: '#6b7280',
-  textMuted: '#9ca3af',
+  // Text - monochrome
+  textPrimary: '#1c1c1e',
+  textSecondary: '#8e8e93',
+  textMuted: '#aeaeb2',
 
   // Surface / cards
   cardBg: '#ffffff',
   inputBg: '#ffffff',
-  inputBorder: '#e5e7eb',
+  inputBorder: '#e5e5ea',
 
   // Feature hint bar
-  featureBarBg: 'rgba(139, 92, 246, 0.12)',
+  featureBarBg: 'rgba(0,0,0,0.04)',
 
-  // Interactive
-  link: '#7c3aed',
-  error: '#dc2626',
-  success: '#059669',
+  // Interactive - monochrome (no accent color in login)
+  link: '#1c1c1e',
+  error: '#8e8e93',
 
   // Icons
-  iconMuted: '#6b7280',
+  iconMuted: '#8e8e93',
 };

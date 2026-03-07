@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -6,30 +6,23 @@ import {
   Animated,
   Dimensions,
   SafeAreaView,
-  Platform,
   Image,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 
-const { width, height } = Dimensions.get('window');
+const { width } = Dimensions.get('window');
 
-// Design tokens from reference
+// Premium monochrome palette
 const colors = {
-  bgStart: '#fdfbff',
-  bgEnd: '#f5f0ff',
-  textPrimary: '#5b21b6',
-  textSecondary: '#7c3aed',
-  tagline: '#6b7280',
-  tagBg: '#ffffff',
-  tagText: '#e11d48',
-  tagTextAlt: '#9333ea',
-  progressTrack: '#e5e7eb',
-  progressFillStart: '#8b5cf6',
-  progressFillEnd: '#ec4899',
-  decorative: 'rgba(139, 92, 246, 0.15)',
+  bg: '#fafafa',
+  textPrimary: '#0a0a0a',
+  textSecondary: '#525252',
+  textMuted: '#a3a3a3',
+  border: '#e5e5e5',
+  progressTrack: '#ebebeb',
+  progressFill: '#171717',
 };
 
 export default function SplashScreen({ navigation }) {
@@ -41,55 +34,35 @@ export default function SplashScreen({ navigation }) {
   authRef.current = isAuthenticated;
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
-  const scaleAnim = useRef(new Animated.Value(0.92)).current;
+  const scaleAnim = useRef(new Animated.Value(0.96)).current;
   const progressAnim = useRef(new Animated.Value(0)).current;
-  const float1 = useRef(new Animated.Value(0)).current;
-  const float2 = useRef(new Animated.Value(0)).current;
-  const float3 = useRef(new Animated.Value(0)).current;
+  const [percent, setPercent] = useState(0);
 
   useEffect(() => {
     // Entrance animation
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,
-        duration: 700,
+        duration: 800,
         useNativeDriver: true,
       }),
       Animated.spring(scaleAnim, {
         toValue: 1,
-        tension: 50,
-        friction: 8,
+        tension: 60,
+        friction: 10,
         useNativeDriver: true,
       }),
     ]).start();
 
     // Progress bar fill over ~2s
+    const listenerId = progressAnim.addListener(({ value }) => {
+      setPercent(Math.round(value * 100));
+    });
     Animated.timing(progressAnim, {
       toValue: 1,
       duration: 2000,
       useNativeDriver: false,
     }).start();
-
-    // Subtle float for decorative icons
-    const createFloat = (anim) =>
-      Animated.loop(
-        Animated.sequence([
-          Animated.timing(anim, {
-            toValue: 1,
-            duration: 2000,
-            useNativeDriver: true,
-          }),
-          Animated.timing(anim, {
-            toValue: 0,
-            duration: 2000,
-            useNativeDriver: true,
-          }),
-        ]),
-        { iterations: -1 }
-      );
-    createFloat(float1).start();
-    setTimeout(() => createFloat(float2).start(), 400);
-    setTimeout(() => createFloat(float3).start(), 800);
 
     // Navigate based on auth after splash minimum
     const navTimer = setTimeout(() => {
@@ -99,8 +72,11 @@ export default function SplashScreen({ navigation }) {
       }
     }, 2500);
 
-    return () => clearTimeout(navTimer);
-  }, [fadeAnim, scaleAnim, progressAnim, float1, float2, float3, navigation]);
+    return () => {
+      clearTimeout(navTimer);
+      progressAnim.removeListener(listenerId);
+    };
+  }, [fadeAnim, scaleAnim, progressAnim, navigation]);
 
   useEffect(() => {
     if (!loading && splashMinRef.current) {
@@ -108,50 +84,16 @@ export default function SplashScreen({ navigation }) {
     }
   }, [loading, isAuthenticated, navigation]);
 
-  const PROGRESS_BAR_WIDTH = Math.min(280, width - 64);
+  const PROGRESS_BAR_WIDTH = Math.min(240, width - 80);
   const progressWidth = progressAnim.interpolate({
     inputRange: [0, 1],
     outputRange: [0, PROGRESS_BAR_WIDTH],
   });
 
-  const translateY1 = float1.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, -6],
-  });
-  const translateY2 = float2.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, -6],
-  });
-  const translateY3 = float3.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, -6],
-  });
-
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.bg }]}>
       <StatusBar style="dark" />
-      <LinearGradient
-        colors={[colors.bgStart, colors.bgEnd]}
-        style={StyleSheet.absoluteFill}
-      />
       <SafeAreaView style={styles.safeArea}>
-        {/* Floating decorative icons */}
-        <Animated.View
-          style={[styles.decorIcon, styles.decorTopLeft, { transform: [{ translateY: translateY1 }] }]}
-        >
-          <Ionicons name="book-outline" size={40} color={colors.decorative} />
-        </Animated.View>
-        <Animated.View
-          style={[styles.decorIcon, styles.decorTopRight, { transform: [{ translateY: translateY2 }] }]}
-        >
-          <Ionicons name="sparkles-outline" size={32} color={colors.decorative} />
-        </Animated.View>
-        <Animated.View
-          style={[styles.decorIcon, styles.decorBottomLeft, { transform: [{ translateY: translateY3 }] }]}
-        >
-          <Ionicons name="trophy-outline" size={36} color={colors.decorative} />
-        </Animated.View>
-
         <Animated.View
           style={[
             styles.content,
@@ -175,36 +117,31 @@ export default function SplashScreen({ navigation }) {
             Remember every conversation. Search. Act. Succeed.
           </Text>
 
-          {/* Feature tags */}
+          {/* Feature tags - monochrome */}
           <View style={styles.tags}>
             <View style={styles.tag}>
-              <Text style={[styles.tagText, { color: colors.tagText }]}>Transcripts</Text>
+              <Text style={styles.tagText}>Transcripts</Text>
             </View>
             <View style={styles.tag}>
-              <Text style={[styles.tagText, { color: colors.tagTextAlt }]}>Action Items</Text>
+              <Text style={styles.tagText}>Action Items</Text>
             </View>
             <View style={styles.tag}>
-              <Text style={[styles.tagText, { color: colors.tagText }]}>AI Search</Text>
+              <Text style={styles.tagText}>AI Search</Text>
             </View>
           </View>
 
           {/* Loading section */}
           <View style={styles.loadingSection}>
             <View style={styles.loadingRow}>
-              <Ionicons name="sparkles-outline" size={14} color={colors.textPrimary} />
-              <Text style={styles.loadingText}>Loading your experience ...</Text>
+              <Ionicons name="sparkles-outline" size={12} color={colors.textMuted} />
+              <Text style={styles.loadingText}>Loading your experience</Text>
             </View>
             <View style={[styles.progressTrack, { width: PROGRESS_BAR_WIDTH }]}>
               <Animated.View style={[styles.progressFillWrap, { width: progressWidth }]}>
-                <LinearGradient
-                  colors={[colors.progressFillStart, colors.progressFillEnd]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={styles.progressFill}
-                />
+                <View style={[styles.progressFill, { backgroundColor: colors.progressFill }]} />
               </Animated.View>
             </View>
-            <Text style={styles.percentText}>100%</Text>
+            <Text style={styles.percentText}>{percent}%</Text>
           </View>
         </Animated.View>
       </SafeAreaView>
@@ -221,74 +158,48 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  decorIcon: {
-    position: 'absolute',
-    opacity: 0.5,
-  },
-  decorTopLeft: {
-    top: height * 0.1,
-    left: width * 0.08,
-  },
-  decorTopRight: {
-    top: height * 0.12,
-    right: width * 0.1,
-  },
-  decorBottomLeft: {
-    bottom: height * 0.2,
-    left: width * 0.1,
-  },
   content: {
     alignItems: 'center',
-    paddingHorizontal: 32,
+    paddingHorizontal: 40,
   },
   logoWrap: {
     alignSelf: 'center',
-    marginBottom: 20,
+    marginBottom: 28,
   },
   logo: {
     width: 640,
     height: 210,
   },
-  brand: {
-    fontSize: 36,
-    fontWeight: '700',
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  brandPart1: {
-    color: colors.textPrimary,
-  },
-  brandPart2: {
-    color: colors.textSecondary,
-  },
   tagline: {
-    fontSize: 15,
-    color: colors.tagline,
-    marginBottom: 24,
+    fontSize: 14,
+    letterSpacing: 0.2,
+    color: colors.textSecondary,
+    marginBottom: 28,
     textAlign: 'center',
     fontWeight: '400',
+    lineHeight: 22,
+    maxWidth: 300,
   },
   tags: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'center',
-    gap: 10,
-    marginBottom: 36,
+    gap: 8,
+    marginBottom: 44,
   },
   tag: {
-    backgroundColor: colors.tagBg,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
-    elevation: 2,
+    backgroundColor: '#fff',
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   tagText: {
-    fontSize: 13,
-    fontWeight: '600',
+    fontSize: 12,
+    fontWeight: '500',
+    color: colors.textPrimary,
+    letterSpacing: 0.3,
   },
   loadingSection: {
     alignItems: 'center',
@@ -298,17 +209,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    marginBottom: 12,
+    marginBottom: 14,
   },
   loadingText: {
-    fontSize: 14,
-    color: colors.tagline,
+    fontSize: 13,
+    color: colors.textMuted,
+    letterSpacing: 0.2,
   },
   progressTrack: {
-    width: '100%',
-    height: 8,
+    height: 6,
     backgroundColor: colors.progressTrack,
-    borderRadius: 4,
+    borderRadius: 3,
     overflow: 'hidden',
   },
   progressFillWrap: {
@@ -321,12 +232,13 @@ const styles = StyleSheet.create({
     flex: 1,
     height: '100%',
     width: '100%',
-    borderRadius: 4,
+    borderRadius: 3,
   },
   percentText: {
-    marginTop: 8,
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.textPrimary,
+    marginTop: 10,
+    fontSize: 12,
+    fontWeight: '500',
+    color: colors.textMuted,
+    letterSpacing: 0.5,
   },
 });
