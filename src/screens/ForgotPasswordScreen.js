@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { Text, StyleSheet } from 'react-native';
 import AuthLayout from '../components/AuthLayout';
 import AuthInput from '../components/AuthInput';
 import AuthButton from '../components/AuthButton';
@@ -29,24 +29,13 @@ export default function ForgotPasswordScreen({ navigation }) {
     }
   };
 
-  const footer = (
-    <TouchableOpacity
-      onPress={() => navigation.replace('Login')}
-      style={styles.backButton}
-      disabled={loading}
-    >
-      <Text style={styles.backText}>← Back to sign in</Text>
-    </TouchableOpacity>
-  );
-
   return (
     <AuthLayout
       title="Forgot password?"
       subtitle="Enter the email linked to your account. We'll send you a verification code to reset your password."
       showLogo
-      showBack
-      onBack={() => navigation.replace('Login')}
-      footer={footer}
+      showCardBack
+      onCardBack={() => navigation.replace('Login')}
     >
       <AuthInput
         label="Email Address"
@@ -75,14 +64,5 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: authColors.error,
     marginBottom: 16,
-  },
-  backButton: {
-    alignItems: 'center',
-    paddingVertical: 24,
-    marginTop: 16,
-  },
-  backText: {
-    fontSize: 16,
-    color: authColors.textSecondary,
   },
 });

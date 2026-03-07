@@ -23,6 +23,8 @@ export default function AuthLayout({
   footer,
   showBack,
   onBack,
+  showCardBack,
+  onCardBack,
   showClose,
   onClose,
   compact = false,
@@ -82,6 +84,19 @@ export default function AuthLayout({
             )}
 
             <View style={[styles.card, compact && styles.cardCompact]}>
+              {showCardBack && (
+                <TouchableOpacity
+                  onPress={onCardBack}
+                  style={styles.cardBackBtn}
+                  hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                >
+                  <Ionicons
+                    name="arrow-back"
+                    size={22}
+                    color={authColors.textSecondary}
+                  />
+                </TouchableOpacity>
+              )}
               {showLogo ? (
                 <View style={[styles.logoWrap, compact && styles.logoWrapCompact]}>
                   <Image
@@ -192,6 +207,10 @@ const styles = StyleSheet.create({
   },
   iconBg: {
     backgroundColor: 'rgba(0,0,0,0.05)',
+  },
+  cardBackBtn: {
+    alignSelf: 'flex-start',
+    marginBottom: 16,
   },
   title: {
     fontSize: 28,

@@ -72,16 +72,6 @@ export default function ResetPasswordScreen({ navigation, route }) {
     }
   };
 
-  const footer = (
-    <TouchableOpacity
-      style={styles.back}
-      onPress={() => navigation.replace('ForgotPassword')}
-      disabled={loading}
-    >
-      <Text style={styles.backText}>← Use a different email</Text>
-    </TouchableOpacity>
-  );
-
   if (!email?.trim()) {
     return null;
   }
@@ -92,7 +82,6 @@ export default function ResetPasswordScreen({ navigation, route }) {
         title="Password Reset!"
         subtitle="Your password has been successfully changed."
         showLogo
-        footer={footer}
       >
         <View style={styles.successCard}>
           <View style={styles.successIconWrap}>
@@ -116,9 +105,8 @@ export default function ResetPasswordScreen({ navigation, route }) {
       title="Reset Password"
       subtitle="Create a strong new password"
       showLogo
-      showBack
-      onBack={() => navigation.replace('ForgotPassword')}
-      footer={footer}
+      showCardBack
+      onCardBack={() => navigation.replace('ForgotPassword')}
     >
       <OTPInput
         value={otp}
@@ -179,15 +167,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: authColors.link,
-  },
-  back: {
-    alignItems: 'center',
-    paddingVertical: 24,
-    marginTop: 16,
-  },
-  backText: {
-    fontSize: 16,
-    color: authColors.textSecondary,
   },
   successCard: {
     backgroundColor: 'rgba(245, 240, 255, 0.8)',
