@@ -3,7 +3,6 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import AuthLayout from '../components/AuthLayout';
 import AuthInput from '../components/AuthInput';
 import AuthButton from '../components/AuthButton';
-import FeatureBar from '../components/FeatureBar';
 import { authApi } from '../services/api';
 import { authColors } from '../theme/authColors';
 
@@ -71,58 +70,60 @@ export default function SignUpScreen({ navigation }) {
       showLogo
       compact
     >
-      <FeatureBar text="Unlock transcripts, action items & AI-powered insights" compact />
+      <View style={styles.form}>
+        <AuthInput
+          label="Full Name"
+          value={name}
+          onChangeText={(t) => { setName(t); setError(''); }}
+          placeholder="Full Name"
+          autoCapitalize="words"
+          leftIcon="person-outline"
+          compact
+        />
+        <AuthInput
+          label="Email Address"
+          value={email}
+          onChangeText={(t) => { setEmail(t); setError(''); }}
+          placeholder="Email Address"
+          keyboardType="email-address"
+          leftIcon="mail-outline"
+          compact
+        />
+        <AuthInput
+          label="Password"
+          value={password}
+          onChangeText={(t) => { setPassword(t); setError(''); }}
+          placeholder="Password"
+          secureTextEntry
+          leftIcon="lock-closed-outline"
+          compact
+        />
 
-      <AuthInput
-        label="Full Name"
-        value={name}
-        onChangeText={(t) => { setName(t); setError(''); }}
-        placeholder="Full Name"
-        autoCapitalize="words"
-        leftIcon="person-outline"
-        compact
-      />
-      <AuthInput
-        label="Email Address"
-        value={email}
-        onChangeText={(t) => { setEmail(t); setError(''); }}
-        placeholder="Email Address"
-        keyboardType="email-address"
-        leftIcon="mail-outline"
-        compact
-      />
-      <AuthInput
-        label="Password"
-        value={password}
-        onChangeText={(t) => { setPassword(t); setError(''); }}
-        placeholder="Password"
-        secureTextEntry
-        leftIcon="lock-closed-outline"
-        compact
-      />
+        {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
-      {error ? <Text style={styles.errorText}>{error}</Text> : null}
+        <AuthButton
+          title="Create Account"
+          onPress={handleSignUp}
+          loading={loading}
+          icon="person-add-outline"
+        />
 
-      <AuthButton
-        title="Create Account"
-        onPress={handleSignUp}
-        loading={loading}
-        icon="person-add-outline"
-      />
-
-      {footer}
+        {footer}
+      </View>
     </AuthLayout>
   );
 }
 
 const styles = StyleSheet.create({
+  form: {
+    gap: 22,
+  },
   errorText: {
     fontSize: 14,
     color: authColors.error,
-    marginBottom: 8,
   },
   footerBox: {
-    marginTop: 10,
+    marginTop: 4,
     paddingTop: 10,
     borderTopWidth: 1,
     borderTopColor: 'rgba(0,0,0,0.06)',

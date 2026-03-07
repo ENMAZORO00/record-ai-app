@@ -171,13 +171,13 @@ const styles = StyleSheet.create({
     height: 210,
   },
   tagline: {
-    fontSize: 14,
+    fontSize: 17,
     letterSpacing: 0.2,
     color: colors.textSecondary,
     marginBottom: 28,
     textAlign: 'center',
     fontWeight: '400',
-    lineHeight: 22,
+    lineHeight: 26,
     maxWidth: 300,
   },
   tags: {
@@ -196,7 +196,7 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
   },
   tagText: {
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: '500',
     color: colors.textPrimary,
     letterSpacing: 0.3,
@@ -212,7 +212,7 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   loadingText: {
-    fontSize: 13,
+    fontSize: 18,
     color: colors.textMuted,
     letterSpacing: 0.2,
   },
@@ -236,7 +236,7 @@ const styles = StyleSheet.create({
   },
   percentText: {
     marginTop: 10,
-    fontSize: 12,
+    fontSize: 18,
     fontWeight: '500',
     color: colors.textMuted,
     letterSpacing: 0.5,

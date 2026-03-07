@@ -118,8 +118,8 @@ const styles = StyleSheet.create({
   keyboard: { flex: 1 },
   scroll: {
     flexGrow: 1,
-    paddingVertical: 24,
-    paddingHorizontal: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
     minHeight: '100%',
   },
   scrollCompact: {
