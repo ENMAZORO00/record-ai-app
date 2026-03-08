@@ -31,14 +31,29 @@ export const RecordingOptionsPresets = { HIGH_QUALITY: {} };
 const supportsPause =
   typeof MediaRecorder !== 'undefined' && typeof MediaRecorder.prototype?.pause === 'function';
 
+// Audio constraints that avoid over-processing; some browsers strip audio with aggressive echo/noise settings
+const AUDIO_CONSTRAINTS = {
+  audio: {
+    echoCancellation: false,
+    noiseSuppression: false,
+    autoGainControl: false,
+  },
+};
+
 export const Recording = {
   createAsync: async () => {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const stream = await navigator.mediaDevices.getUserMedia(
+      typeof navigator.mediaDevices.getSupportedConstraints?.()?.echoCancellation === 'boolean'
+        ? AUDIO_CONSTRAINTS
+        : { audio: true }
+    );
     mediaStream = stream;
 
     const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
       ? 'audio/webm;codecs=opus'
-      : 'audio/webm';
+      : MediaRecorder.isTypeSupported('audio/mp4')
+        ? 'audio/mp4'
+        : 'audio/webm';
     const mediaRecorder = new MediaRecorder(stream, { mimeType, audioBitsPerSecond: 128000 });
     const chunks = [];
     mediaRecorder.ondataavailable = (e) => {
@@ -50,7 +65,8 @@ export const Recording = {
     await new Promise((resolve, reject) => {
       mediaRecorder.onstart = () => resolve();
       mediaRecorder.onerror = (e) => reject(e.error || new Error('Recording failed'));
-      mediaRecorder.start(100);
+      // Use 1000ms timeslice for reliability (100ms can cause empty chunks in some browsers)
+      mediaRecorder.start(1000);
     });
 
     const recording = {
@@ -79,6 +95,10 @@ export const Recording = {
             mediaStream = null;
             resolve();
           };
+          // Force flush of buffered data before stop (helps Safari/Chrome with final chunk)
+          if (mediaRecorder.state === 'recording' && typeof mediaRecorder.requestData === 'function') {
+            mediaRecorder.requestData();
+          }
           mediaRecorder.stop();
         });
       },
