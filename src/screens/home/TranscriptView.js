@@ -13,7 +13,6 @@ import {
   TextInput,
   Platform,
   Dimensions,
-  Linking,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { Audio } from 'expo-av';
@@ -33,6 +32,14 @@ function formatTranscriptTime(iso) {
   if (!iso) return '';
   const d = new Date(iso);
   return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true });
+}
+
+function formatAudioTime(ms) {
+  if (ms == null || isNaN(ms)) return '0:00';
+  const sec = Math.floor(ms / 1000);
+  const m = Math.floor(sec / 60);
+  const s = sec % 60;
+  return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
 function getSnippet(item) {
@@ -85,7 +92,10 @@ function ConversationDetail({ transcriptId, initialTranscript, token, onClose })
   const [sound, setSound] = useState(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [audioError, setAudioError] = useState(null);
+  const [position, setPosition] = useState(0);
+  const [duration, setDuration] = useState(0);
   const isMounted = useRef(true);
+  const positionInterval = useRef(null);
 
   useEffect(() => {
     if (!transcriptId) {
@@ -130,6 +140,8 @@ function ConversationDetail({ transcriptId, initialTranscript, token, onClose })
       setSound(null);
       setIsPlaying(false);
       setAudioError(null);
+      setPosition(0);
+      setDuration(0);
       return undefined;
     }
     let cancelled = false;
@@ -153,6 +165,10 @@ function ConversationDetail({ transcriptId, initialTranscript, token, onClose })
         }
         setSound(newSound);
         setAudioError(null);
+        const status = await newSound.getStatusAsync();
+        if (status.isLoaded && status.durationMillis != null && isMounted.current) {
+          setDuration(status.durationMillis);
+        }
       } catch (err) {
         if (!cancelled && isMounted.current) {
           setAudioError(err?.message || 'Could not load audio');
@@ -190,13 +206,45 @@ function ConversationDetail({ transcriptId, initialTranscript, token, onClose })
   useEffect(() => {
     if (!sound || typeof sound.addListener !== 'function') return;
     const sub = sound.addListener((status) => {
-      if (status.isLoaded && !status.isPlaying && status.didJustFinishAndNotReset) {
-        setIsPlaying(false);
-        sound.setPositionAsync(0).catch(() => {});
+      if (status.isLoaded) {
+        if (!status.isPlaying && status.didJustFinishAndNotReset) {
+          setIsPlaying(false);
+          setPosition(0);
+          sound.setPositionAsync(0).catch(() => {});
+        } else if (status.durationMillis != null) {
+          setDuration(status.durationMillis);
+        }
       }
     });
     return () => sub.remove();
   }, [sound]);
+
+  useEffect(() => {
+    if (!sound || !isPlaying) {
+      if (positionInterval.current) {
+        clearInterval(positionInterval.current);
+        positionInterval.current = null;
+      }
+      return;
+    }
+    const updatePosition = async () => {
+      try {
+        const status = await sound.getStatusAsync();
+        if (status.isLoaded && isMounted.current) {
+          setPosition(status.positionMillis ?? 0);
+          if (status.durationMillis != null) setDuration(status.durationMillis);
+        }
+      } catch (_) {}
+    };
+    updatePosition();
+    positionInterval.current = setInterval(updatePosition, 250);
+    return () => {
+      if (positionInterval.current) {
+        clearInterval(positionInterval.current);
+        positionInterval.current = null;
+      }
+    };
+  }, [sound, isPlaying]);
 
   return (
     <Modal visible={!!transcriptId} transparent animationType="slide">
@@ -244,19 +292,25 @@ function ConversationDetail({ transcriptId, initialTranscript, token, onClose })
                     />
                   </TouchableOpacity>
                   <View style={styles.audioInfo}>
-                    <View style={styles.audioInfoRow}>
-                      <Ionicons name="musical-notes" size={20} color={homeColors.accent} />
-                      <Text style={styles.audioLabel}>
-                        {audioError ? audioError : 'Tap play to listen'}
-                      </Text>
+                    <View style={styles.audioBar}>
+                      <View style={styles.audioBarTrack}>
+                        <View
+                          style={[
+                            styles.audioBarFill,
+                            {
+                              width: `${duration > 0 ? Math.min(100, (position / duration) * 100) : 0}%`,
+                            },
+                          ]}
+                        />
+                      </View>
                     </View>
-                    <TouchableOpacity
-                      style={styles.audioLinkBtn}
-                      onPress={() => Linking.openURL(recordingUrl)}
-                    >
-                      <Ionicons name="open-outline" size={18} color={homeColors.accent} />
-                      <Text style={styles.audioLinkText}>Open recording</Text>
-                    </TouchableOpacity>
+                    <View style={styles.audioTimeRow}>
+                      <Text style={styles.audioTimeText}>{formatAudioTime(position)}</Text>
+                      <Text style={styles.audioTimeText}>{formatAudioTime(duration)}</Text>
+                    </View>
+                    {audioError ? (
+                      <Text style={styles.audioErrorText}>{audioError}</Text>
+                    ) : null}
                   </View>
                 </View>
               </View>
@@ -688,23 +742,38 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     gap: 6,
   },
-  audioInfoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+  audioBar: {
+    width: '100%',
+    marginBottom: 4,
   },
-  audioLinkBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingVertical: 4,
-    paddingRight: 8,
+  audioBarTrack: {
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: 'rgba(152, 16, 250, 0.2)',
+    overflow: 'hidden',
   },
-  audioLinkText: {
+  audioBarFill: {
+    height: '100%',
+    borderRadius: 3,
+    backgroundColor: homeColors.accent,
+  },
+  audioTimeRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    width: '100%',
+  },
+  audioTimeText: {
     fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
-    fontSize: 14,
-    fontWeight: '600',
-    color: homeColors.accent,
+    fontSize: 12,
+    fontWeight: '500',
+    color: homeColors.textMuted,
+  },
+  audioErrorText: {
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
+    fontSize: 12,
+    color: '#DC2626',
+    marginTop: 4,
   },
   audioLabel: {
     fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
