@@ -18,7 +18,7 @@ import { BlurView } from 'expo-blur';
 import { Audio } from 'expo-av';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
-import { getTranscripts, getTranscript, searchTranscripts } from '../../services/api';
+import { getTranscripts, getTranscript, searchTranscripts, deleteTranscript } from '../../services/api';
 import { homeColors } from '../../theme/homeColors';
 
 function formatTranscriptDate(iso) {
@@ -83,10 +83,12 @@ function TranscriptCard({ item, onPress }) {
   );
 }
 
-function ConversationDetail({ transcriptId, initialTranscript, token, onClose }) {
+function ConversationDetail({ transcriptId, initialTranscript, token, onClose, onDeleted }) {
   const [transcript, setTranscript] = useState(initialTranscript ?? null);
   const [detailLoading, setDetailLoading] = useState(!!transcriptId);
   const [detailError, setDetailError] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const lines = transcript?.Conversation ?? [];
   const recordingUrl = transcript?.recordingUrl;
   const [sound, setSound] = useState(null);
@@ -101,6 +103,7 @@ function ConversationDetail({ transcriptId, initialTranscript, token, onClose })
     if (!transcriptId) {
       setTranscript(null);
       setDetailLoading(false);
+      setShowDeleteConfirm(false);
       return;
     }
     setTranscript(initialTranscript ?? null);
@@ -219,6 +222,24 @@ function ConversationDetail({ transcriptId, initialTranscript, token, onClose })
     return () => sub.remove();
   }, [sound]);
 
+  const handleDeletePress = () => setShowDeleteConfirm(true);
+  const handleDeleteCancel = () => setShowDeleteConfirm(false);
+  const handleDeleteConfirm = async () => {
+    if (!transcriptId || !token || String(transcriptId).startsWith('dummy-')) return;
+    setDeleting(true);
+    setDetailError(null);
+    try {
+      await deleteTranscript(token, transcriptId);
+      onDeleted?.();
+      onClose();
+    } catch (err) {
+      setDetailError(err?.message || 'Failed to delete');
+    } finally {
+      setDeleting(false);
+      setShowDeleteConfirm(false);
+    }
+  };
+
   useEffect(() => {
     if (!sound || !isPlaying) {
       if (positionInterval.current) {
@@ -333,6 +354,44 @@ function ConversationDetail({ transcriptId, initialTranscript, token, onClose })
                   <Text style={styles.convText}>{line.text}</Text>
                 </View>
               ))
+            )}
+            {transcript && transcriptId && !String(transcriptId).startsWith('dummy-') && (
+              <View style={styles.deleteSection}>
+                {showDeleteConfirm ? (
+                  <View style={styles.deleteConfirmBox}>
+                    <Text style={styles.deleteConfirmText}>Are you sure you want to delete this recording and transcript? This cannot be undone.</Text>
+                    <View style={styles.deleteConfirmButtons}>
+                      <TouchableOpacity
+                        style={styles.deleteConfirmCancel}
+                        onPress={handleDeleteCancel}
+                        disabled={deleting}
+                      >
+                        <Text style={styles.deleteConfirmCancelText}>Cancel</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.deleteConfirmDelete}
+                        onPress={handleDeleteConfirm}
+                        disabled={deleting}
+                      >
+                        {deleting ? (
+                          <ActivityIndicator size="small" color="#fff" />
+                        ) : (
+                          <Text style={styles.deleteButtonText}>Yes, Delete</Text>
+                        )}
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                ) : (
+                  <TouchableOpacity
+                    style={styles.deleteButton}
+                    onPress={handleDeletePress}
+                    disabled={deleting}
+                  >
+                    <Ionicons name="trash-outline" size={20} color="#fff" />
+                    <Text style={styles.deleteButtonText}>Delete</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
             )}
             </>
             )}
@@ -494,6 +553,7 @@ export default function TranscriptView() {
         initialTranscript={selected}
         token={token}
         onClose={() => setSelected(null)}
+        onDeleted={() => load(true)}
       />
     </View>
   );
@@ -849,5 +909,61 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: homeColors.textPrimary,
     lineHeight: 24,
+  },
+  deleteSection: {
+    marginTop: 24,
+  },
+  deleteButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    backgroundColor: '#DC2626',
+    borderRadius: 12,
+  },
+  deleteButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#fff',
+  },
+  deleteConfirmBox: {
+    padding: 16,
+    backgroundColor: 'rgba(220, 38, 38, 0.08)',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(220, 38, 38, 0.3)',
+  },
+  deleteConfirmText: {
+    fontSize: 14,
+    color: homeColors.textPrimary,
+    lineHeight: 22,
+    marginBottom: 16,
+  },
+  deleteConfirmButtons: {
+    flexDirection: 'row',
+    gap: 12,
+    justifyContent: 'flex-end',
+  },
+  deleteConfirmCancel: {
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 10,
+    backgroundColor: 'rgba(0,0,0,0.08)',
+  },
+  deleteConfirmCancelText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: homeColors.textPrimary,
+  },
+  deleteConfirmDelete: {
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 10,
+    backgroundColor: '#DC2626',
+    minWidth: 100,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

@@ -73,6 +73,23 @@ export async function searchTranscripts(token, query) {
 }
 
 /**
+ * Delete a transcript (and its audio from Azure).
+ * @param {string} token - Auth token
+ * @param {string} id - Transcript ID
+ */
+export async function deleteTranscript(token, id) {
+  const res = await fetch(`${getBaseUrl()}/transcripts/${id}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}))
+    throw new Error(data?.error || 'Failed to delete transcript')
+  }
+  return
+}
+
+/**
  * Get a single transcript with conversations.
  */
 export async function getTranscript(token, id) {
