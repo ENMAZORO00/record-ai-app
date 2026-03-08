@@ -23,12 +23,10 @@ import { homeColors } from '../theme/homeColors';
 import AssistantView from './home/AssistantView';
 import TaskBarView from './home/TaskBarView';
 import TranscriptView from './home/TranscriptView';
-import MindMapView from './home/MindMapView';
 const TABS = [
   { id: 'assistant', label: 'Assistant', icon: 'sparkles' },
   { id: 'taskbar', label: 'Tasks', icon: 'cube-outline' },
   { id: 'transcript', label: 'Transcript', icon: 'document-text-outline' },
-  { id: 'mindmap', label: 'Mindmap', icon: 'bulb-outline' },
 ];
 
 export default function HomeScreen() {
@@ -175,8 +173,6 @@ export default function HomeScreen() {
         return <TaskBarView />;
       case 'transcript':
         return <TranscriptView />;
-      case 'mindmap':
-        return <MindMapView />;
       default:
         return (
           <AssistantView
