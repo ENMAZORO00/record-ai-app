@@ -53,6 +53,26 @@ export async function getTranscripts(token) {
 }
 
 /**
+ * Semantic search over transcripts using Groq embeddings.
+ * @param {string} token - Auth token
+ * @param {string} query - User's search description
+ * @returns {Promise<Array>} Sorted transcripts by relevance
+ */
+export async function searchTranscripts(token, query) {
+  const res = await fetch(`${getBaseUrl()}/transcripts/search`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ query: (query || '').trim() }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data?.error || 'Search failed');
+  return data;
+}
+
+/**
  * Get a single transcript with conversations.
  */
 export async function getTranscript(token, id) {

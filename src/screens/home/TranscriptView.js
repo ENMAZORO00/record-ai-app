@@ -18,7 +18,7 @@ import { BlurView } from 'expo-blur';
 import { Audio } from 'expo-av';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
-import { getTranscripts, getTranscript } from '../../services/api';
+import { getTranscripts, getTranscript, searchTranscripts } from '../../services/api';
 import { homeColors } from '../../theme/homeColors';
 
 function formatTranscriptDate(iso) {
@@ -343,13 +343,22 @@ function ConversationDetail({ transcriptId, initialTranscript, token, onClose })
   );
 }
 
+const SEARCH_DEBOUNCE_MS = 500;
+
 export default function TranscriptView() {
   const { token } = useAuth();
   const [list, setList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [searchLoading, setSearchLoading] = useState(false);
   const [selected, setSelected] = useState(null);
+  const searchQueryRef = useRef('');
+
+  useEffect(() => {
+    searchQueryRef.current = searchQuery;
+  }, [searchQuery]);
 
   const load = useCallback(
     async (isRefresh = false) => {
@@ -373,21 +382,50 @@ export default function TranscriptView() {
     [token]
   );
 
-  React.useEffect(() => {
+  useEffect(() => {
     load();
   }, [load]);
 
-  const displayList = useMemo(() => list, [list]);
+  useEffect(() => {
+    const q = searchQuery.trim();
+    if (!q || !token) {
+      setSearchResults([]);
+      setSearchLoading(false);
+      return;
+    }
+    const tid = setTimeout(async () => {
+      const queryAtSearch = q;
+      setSearchLoading(true);
+      try {
+        const data = await searchTranscripts(token, queryAtSearch);
+        if (searchQueryRef.current === queryAtSearch) {
+          setSearchResults(Array.isArray(data) ? data : []);
+        }
+      } catch (err) {
+        console.warn('Semantic search error:', err);
+        if (searchQueryRef.current === queryAtSearch) {
+          setSearchResults([]);
+        }
+      } finally {
+        if (searchQueryRef.current === queryAtSearch) {
+          setSearchLoading(false);
+        }
+      }
+    }, SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(tid);
+  }, [searchQuery, token]);
 
   const filteredList = useMemo(() => {
-    if (!searchQuery.trim()) return displayList;
-    const q = searchQuery.toLowerCase().trim();
-    return displayList.filter((item) => {
-      const snippet = getSnippet(item).toLowerCase();
-      const dateStr = formatTranscriptDate(item.createdAt).toLowerCase();
-      return snippet.includes(q) || dateStr.includes(q);
-    });
-  }, [displayList, searchQuery]);
+    if (!searchQuery.trim()) return list;
+    return searchResults;
+  }, [list, searchQuery, searchResults]);
+
+  const emptyMessage = searchQuery.trim()
+    ? 'No matching transcripts'
+    : 'No transcripts yet';
+  const emptySubtitle = searchQuery.trim()
+    ? 'Try a different search or describe what you\u2019re looking for.'
+    : 'Record a conversation in the Assistant tab, then stop to save and transcribe it here.';
 
   return (
     <View style={styles.container}>
@@ -402,7 +440,7 @@ export default function TranscriptView() {
             <Ionicons name="search" size={20} color="#99A1AF" />
             <TextInput
               style={styles.searchInput}
-              placeholder="Search"
+              placeholder="Search or describe what you're looking for"
               placeholderTextColor="#99A1AF"
               value={searchQuery}
               onChangeText={setSearchQuery}
@@ -418,15 +456,18 @@ export default function TranscriptView() {
         <View style={styles.centered}>
           <ActivityIndicator size="large" color={homeColors.accent} />
         </View>
+      ) : searchQuery.trim() && searchLoading ? (
+        <View style={styles.centered}>
+          <ActivityIndicator size="large" color={homeColors.accent} />
+          <Text style={styles.emptySubtitle}>Searching transcripts…</Text>
+        </View>
       ) : filteredList.length === 0 ? (
         <View style={styles.centered}>
           <View style={styles.iconWrap}>
             <Ionicons name="document-text-outline" size={48} color={homeColors.accent} />
           </View>
-          <Text style={styles.emptyTitle}>No transcripts yet</Text>
-          <Text style={styles.emptySubtitle}>
-            Record a conversation in the Assistant tab, then stop to save and transcribe it here.
-          </Text>
+          <Text style={styles.emptyTitle}>{emptyMessage}</Text>
+          <Text style={styles.emptySubtitle}>{emptySubtitle}</Text>
         </View>
       ) : (
         <FlatList
