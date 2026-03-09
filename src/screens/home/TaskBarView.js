@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -9,43 +9,14 @@ import {
   Modal,
   TextInput,
   KeyboardAvoidingView,
+  ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
+import { useAuth } from '../../context/AuthContext';
+import { getInformation, createInformation, deleteInformation } from '../../services/api';
 import { homeColors } from '../../theme/homeColors';
-
-// Upcoming task card - circle toggles completion, delete button (Notes app style)
-function UpcomingTaskCard({ text, completed, onToggle, onDelete }) {
-  return (
-    <View style={[styles.taskCard, completed && styles.taskCardComplete]}>
-      <TouchableOpacity
-        style={[styles.taskCircleWrap, completed && styles.taskCircleComplete]}
-        onPress={onToggle}
-        activeOpacity={0.7}
-        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-      >
-        {completed ? (
-          <Ionicons name="checkmark" size={14} color="#FFFFFF" />
-        ) : (
-          <View style={styles.taskCircle} />
-        )}
-      </TouchableOpacity>
-      <Text
-        style={[styles.taskText, completed && styles.taskTextComplete]}
-        numberOfLines={2}
-      >
-        {text}
-      </Text>
-      <TouchableOpacity
-        style={styles.deleteBtn}
-        onPress={onDelete}
-        activeOpacity={0.7}
-        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-      >
-        <Ionicons name="trash-outline" size={20} color="#6A7282" />
-      </TouchableOpacity>
-    </View>
-  );
-}
 
 // Information note card (green dot, delete button)
 function InfoNoteCard({ text, onDelete }) {
@@ -68,31 +39,62 @@ function InfoNoteCard({ text, onDelete }) {
 }
 
 export default function TaskBarView() {
-  const [tasks, setTasks] = useState([
-    { id: '1', text: 'Showcasing new design elements and style', completed: false },
-    { id: '2', text: 'Showcasing new design elements and style', completed: false },
-    { id: '3', text: 'Showcasing new design elements and style', completed: false },
-  ]);
+  const { token } = useAuth();
+  const [infoNotes, setInfoNotes] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState(null);
+  const [addLoading, setAddLoading] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
-  const [newTaskText, setNewTaskText] = useState('');
+  const [newInfoText, setNewInfoText] = useState('');
 
-  const handleAddTask = () => {
-    const trimmed = newTaskText.trim();
-    if (trimmed) {
-      setTasks((prev) => [
-        { id: String(Date.now()), text: trimmed, completed: false },
-        ...prev,
-      ]);
-      setNewTaskText('');
+  const fetchInfoNotes = useCallback(async (showRefreshing = false) => {
+    if (!token) return;
+    if (showRefreshing) setRefreshing(true);
+    else setLoading(true);
+    setError(null);
+    try {
+      const data = await getInformation(token);
+      setInfoNotes(Array.isArray(data) ? data : []);
+    } catch (err) {
+      setError(err?.message || 'Failed to load information');
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [token]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (token) fetchInfoNotes();
+    }, [token, fetchInfoNotes])
+  );
+
+  const handleAddInfo = async () => {
+    const trimmed = newInfoText.trim();
+    if (!trimmed || !token || addLoading) return;
+    setAddLoading(true);
+    try {
+      const item = await createInformation(token, { text: trimmed });
+      setInfoNotes((prev) => [item, ...prev]);
+      setNewInfoText('');
       setModalVisible(false);
+    } catch (err) {
+      setError(err?.message || 'Failed to add information');
+    } finally {
+      setAddLoading(false);
     }
   };
 
-  const [infoNotes, setInfoNotes] = useState([
-    'Your Password set as Adam2029 of Discord',
-    'Meeting at 12AM at 3rd wave coffee shop',
-    'Passport Appointment at New York ,4th street',
-  ]);
+  const handleDelete = async (id) => {
+    if (!token) return;
+    try {
+      await deleteInformation(token, id);
+      setInfoNotes((prev) => prev.filter((item) => item.id !== id));
+    } catch (err) {
+      setError(err?.message || 'Failed to delete');
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -114,47 +116,44 @@ export default function TaskBarView() {
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => fetchInfoNotes(true)}
+            tintColor={homeColors.accent}
+          />
+        }
       >
-        {/* Upcoming Task */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Upcoming Task</Text>
-          <View style={styles.cardList}>
-            {tasks.map((t) => (
-              <UpcomingTaskCard
-                key={t.id}
-                text={t.text}
-                completed={t.completed}
-                onToggle={() => {
-                  setTasks((prev) =>
-                    prev.map((task) =>
-                      task.id === t.id
-                        ? { ...task, completed: !task.completed }
-                        : task
-                    )
-                  );
-                }}
-                onDelete={() => setTasks((prev) => prev.filter((task) => task.id !== t.id))}
-              />
-            ))}
+        {error ? (
+          <View style={styles.errorWrap}>
+            <Text style={styles.errorText}>{error}</Text>
           </View>
-        </View>
-
-        {/* Information Note */}
+        ) : null}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Information Note:</Text>
-          <View style={styles.cardList}>
-            {infoNotes.map((text, i) => (
-              <InfoNoteCard
-                key={i}
-                text={text}
-                onDelete={() => setInfoNotes((prev) => prev.filter((_, idx) => idx !== i))}
-              />
-            ))}
-          </View>
+          {loading ? (
+            <View style={styles.loadingWrap}>
+              <ActivityIndicator size="small" color={homeColors.accent} />
+              <Text style={styles.loadingText}>Loading...</Text>
+            </View>
+          ) : (
+            <View style={styles.cardList}>
+              {infoNotes.length === 0 ? (
+                <Text style={styles.emptyText}>No information notes yet. Add one with the + button.</Text>
+              ) : (
+                infoNotes.map((item) => (
+                  <InfoNoteCard
+                    key={item.id}
+                    text={item.text}
+                    onDelete={() => handleDelete(item.id)}
+                  />
+                ))
+              )}
+            </View>
+          )}
         </View>
       </ScrollView>
 
-      {/* Add Task Modal */}
+      {/* Add Information Modal */}
       <Modal
         visible={modalVisible}
         transparent
@@ -175,13 +174,13 @@ export default function TaskBarView() {
               onPress={(e) => e.stopPropagation()}
               style={styles.modalContent}
             >
-              <Text style={styles.modalTitle}>New Task</Text>
+              <Text style={styles.modalTitle}>Add Information</Text>
               <TextInput
                 style={styles.modalInput}
-                placeholder="Describe your task..."
+                placeholder="Describe your information..."
                 placeholderTextColor="#9CA3AF"
-                value={newTaskText}
-                onChangeText={setNewTaskText}
+                value={newInfoText}
+                onChangeText={setNewInfoText}
                 multiline
                 autoFocus
               />
@@ -189,7 +188,7 @@ export default function TaskBarView() {
                 <TouchableOpacity
                   style={[styles.modalBtn, styles.modalBtnCancel]}
                   onPress={() => {
-                    setNewTaskText('');
+                    setNewInfoText('');
                     setModalVisible(false);
                   }}
                   activeOpacity={0.7}
@@ -198,10 +197,15 @@ export default function TaskBarView() {
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.modalBtn, styles.modalBtnAdd]}
-                  onPress={handleAddTask}
+                  onPress={handleAddInfo}
                   activeOpacity={0.7}
+                  disabled={addLoading}
                 >
-                  <Text style={styles.modalBtnAddText}>Add</Text>
+                  {addLoading ? (
+                    <ActivityIndicator size="small" color="#FFFFFF" />
+                  ) : (
+                    <Text style={styles.modalBtnAddText}>Add</Text>
+                  )}
                 </TouchableOpacity>
               </View>
             </TouchableOpacity>
@@ -268,6 +272,37 @@ const styles = StyleSheet.create({
   cardList: {
     gap: 9,
   },
+  loadingWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    paddingVertical: 32,
+  },
+  loadingText: {
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-medium',
+    fontSize: 14,
+    color: '#6A7282',
+  },
+  emptyText: {
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-medium',
+    fontSize: 14,
+    color: '#9CA3AF',
+    paddingVertical: 24,
+    textAlign: 'center',
+  },
+  errorWrap: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    marginBottom: 8,
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    borderRadius: 8,
+  },
+  errorText: {
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-medium',
+    fontSize: 14,
+    color: '#DC2626',
+  },
   taskCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -293,31 +328,6 @@ const styles = StyleSheet.create({
   },
   infoNoteCard: {
     paddingLeft: 20,
-  },
-  taskCircleWrap: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  taskCircle: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: '#E5E7EB',
-    borderWidth: 2,
-    borderColor: '#D1D5DB',
-  },
-  taskCircleComplete: {
-    backgroundColor: homeColors.accent,
-  },
-  taskCardComplete: {
-    opacity: 0.78,
-  },
-  taskTextComplete: {
-    textDecorationLine: 'line-through',
-    color: '#9CA3AF',
   },
   infoDot: {
     width: 10,

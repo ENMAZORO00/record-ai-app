@@ -219,6 +219,54 @@ export async function deleteChat(token, id) {
 }
 
 /**
+ * Get list of information notes for the current user.
+ * @param {string} token - Auth token
+ * @returns {Promise<Array<{ id, text, createdAt }>>}
+ */
+export async function getInformation(token) {
+  const res = await fetch(`${getBaseUrl()}/information`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data?.error || 'Failed to load information');
+  return data;
+}
+
+/**
+ * Create an information note.
+ * @param {string} token - Auth token
+ * @param {object} body - { text }
+ * @returns {Promise<{ id, text, createdAt }>}
+ */
+export async function createInformation(token, body) {
+  const res = await fetch(`${getBaseUrl()}/information`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(body),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data?.error || 'Failed to add information');
+  return data;
+}
+
+/**
+ * Delete an information note.
+ * @param {string} token - Auth token
+ * @param {string} id - Information ID
+ */
+export async function deleteInformation(token, id) {
+  const res = await fetch(`${getBaseUrl()}/information/${id}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data?.error || 'Failed to delete information');
+}
+
+/**
  * Delete a transcript (and its audio from Azure).
  * @param {string} token - Auth token
  * @param {string} id - Transcript ID
