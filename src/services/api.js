@@ -73,6 +73,42 @@ export async function searchTranscripts(token, query) {
 }
 
 /**
+ * Chat with the assistant: search transcripts and get an answer. Supports follow-up questions.
+ * @param {string} token - Auth token
+ * @param {Array<{ role: 'user'|'assistant', text?: string, content?: string }>} messages - Chat history
+ * @returns {Promise<{ content: string }>}
+ */
+const ASSISTANT_TIMEOUT_MS = 45000
+
+export async function assistantChat(token, messages) {
+  const formatted = (messages || []).map((m) => ({
+    role: m.role,
+    content: (m.text ?? m.content ?? '').toString().trim(),
+  })).filter((m) => m.role && m.content)
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), ASSISTANT_TIMEOUT_MS)
+  try {
+    const res = await fetch(`${getBaseUrl()}/assistant/chat`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ messages: formatted }),
+      signal: controller.signal,
+    })
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok) throw new Error(data?.error || 'Assistant failed')
+    return data
+  } catch (err) {
+    if (err.name === 'AbortError') throw new Error('Request timed out. Please try again.')
+    throw err
+  } finally {
+    clearTimeout(timeoutId)
+  }
+}
+
+/**
  * Delete a transcript (and its audio from Azure).
  * @param {string} token - Auth token
  * @param {string} id - Transcript ID

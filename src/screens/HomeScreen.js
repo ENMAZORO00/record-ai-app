@@ -19,6 +19,7 @@ import { Ionicons } from '@expo/vector-icons';
 import Svg, { Path } from 'react-native-svg';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
+import { assistantChat } from '../services/api';
 import { homeColors } from '../theme/homeColors';
 import AssistantView from './home/AssistantView';
 import TaskBarView from './home/TaskBarView';
@@ -32,7 +33,7 @@ const TABS = [
 export default function HomeScreen() {
   const navigation = useNavigation();
   const route = useRoute();
-  const { user, signOut } = useAuth();
+  const { user, signOut, token } = useAuth();
   const insets = useSafeAreaInsets();
   const [activeTab, setActiveTab] = useState('assistant');
   const [assistantResetKey, setAssistantResetKey] = useState(0);
@@ -42,33 +43,9 @@ export default function HomeScreen() {
   const [startInChatView, setStartInChatView] = useState(false);
   const slideAnim = useRef(new Animated.Value(-242)).current;
 
-  // Chats: { id, title, messages: [{ role, text, isLoading? }] }
-  const [chats, setChats] = useState(() => [
-    {
-      id: 'chat-1',
-      title: 'My Yesterday chat history of..',
-      messages: [
-        { role: 'user', text: 'Summarize my meeting from yesterday' },
-        { role: 'assistant', text: 'Here’s a summary of your meeting...' },
-      ],
-    },
-    {
-      id: 'chat-2',
-      title: 'My Today chat history one..',
-      messages: [
-        { role: 'user', text: 'What were the action items?' },
-        { role: 'assistant', text: 'The main action items were...' },
-      ],
-    },
-    {
-      id: 'chat-3',
-      title: 'During my meeting chat on..',
-      messages: [
-        { role: 'user', text: 'Help me with the transcript' },
-        { role: 'assistant', text: 'Searching precise transcri...', isLoading: true },
-      ],
-    },
-  ]);
+  const [chatLoading, setChatLoading] = useState(false);
+  // Chats: { id, title, messages: [{ role, text, isLoading?, isError? }] }
+  const [chats, setChats] = useState([]);
   const [currentChatId, setCurrentChatId] = useState(null);
 
   const currentMessages = currentChatId
@@ -91,28 +68,66 @@ export default function HomeScreen() {
     setAssistantResetKey((k) => k + 1);
   };
 
-  const handleSendMessage = (text) => {
+  const handleSendMessage = async (text) => {
     const trimmed = text?.trim();
-    if (!trimmed) return;
+    if (!trimmed || !token || chatLoading) return;
     const userMsg = { role: 'user', text: trimmed };
-    const assistantPlaceholder = { role: 'assistant', text: 'Searching precise transcri...', isLoading: true };
+    const assistantPlaceholder = { role: 'assistant', text: '', isLoading: true };
 
-    if (currentChatId) {
+    let chatId = currentChatId;
+    if (chatId) {
       setChats((prev) =>
         prev.map((c) =>
-          c.id === currentChatId
+          c.id === chatId
             ? { ...c, messages: [...c.messages, userMsg, assistantPlaceholder] }
             : c
         )
       );
     } else {
-      const newId = `chat-${Date.now()}`;
+      chatId = `chat-${Date.now()}`;
       const title = trimmed.length > 40 ? `${trimmed.slice(0, 40)}..` : trimmed;
       setChats((prev) => [
-        { id: newId, title, messages: [userMsg, assistantPlaceholder] },
+        { id: chatId, title, messages: [userMsg, assistantPlaceholder] },
         ...prev,
       ]);
-      setCurrentChatId(newId);
+      setCurrentChatId(chatId);
+    }
+    setChatLoading(true);
+
+    const prevMessages = chats.find((c) => c.id === chatId)?.messages ?? (chatId === currentChatId ? currentMessages : []);
+    const messagesForApi = prevMessages
+      .filter((m) => !m.isLoading && !m.isError)
+      .map((m) => ({ role: m.role, content: m.text || m.content || '' }))
+      .concat([{ role: 'user', content: trimmed }]);
+
+    try {
+      const { content } = await assistantChat(token, messagesForApi);
+      setChats((prev) =>
+        prev.map((c) =>
+          c.id === chatId
+            ? {
+                ...c,
+                messages: c.messages.slice(0, -1).concat([{ role: 'assistant', text: content }]),
+              }
+            : c
+        )
+      );
+    } catch (err) {
+      const errMsg = err?.message || 'Something went wrong. Please try again.';
+      setChats((prev) =>
+        prev.map((c) =>
+          c.id === chatId
+            ? {
+                ...c,
+                messages: c.messages.slice(0, -1).concat([
+                  { role: 'assistant', text: errMsg, isError: true },
+                ]),
+              }
+            : c
+        )
+      );
+    } finally {
+      setChatLoading(false);
     }
   };
 
@@ -167,6 +182,7 @@ export default function HomeScreen() {
             messages={currentMessages}
             onSendMessage={handleSendMessage}
             currentChatId={currentChatId}
+            sending={chatLoading}
           />
         );
       case 'taskbar':
@@ -185,6 +201,7 @@ export default function HomeScreen() {
             messages={currentMessages}
             onSendMessage={handleSendMessage}
             currentChatId={currentChatId}
+            sending={chatLoading}
           />
         );
     }

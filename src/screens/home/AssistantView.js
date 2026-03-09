@@ -46,6 +46,7 @@ export default function AssistantView({
   onConsumedNewChat,
   messages: messagesProp,
   onSendMessage: onSendMessageProp,
+  sending = false,
 }) {
   const { token, user } = useAuth();
   const userName = user?.name?.split?.(' ')?.[0] || 'there';
@@ -223,7 +224,7 @@ export default function AssistantView({
 
   const handleSendMessage = () => {
     const trimmed = searchQuery.trim();
-    if (!trimmed || recordingState !== RecordingState.IDLE) return;
+    if (!trimmed || recordingState !== RecordingState.IDLE || sending) return;
     if (isControlled && onSendMessageProp) {
       onSendMessageProp(trimmed);
       setSearchQuery('');
@@ -240,6 +241,13 @@ export default function AssistantView({
   };
 
   const showChat = messages.length > 0 || forceShowChat;
+
+  useEffect(() => {
+    if (messages.length > 0) {
+      const t = setTimeout(() => chatScrollRef.current?.scrollToEnd?.({ animated: true }), 150);
+      return () => clearTimeout(t);
+    }
+  }, [messages.length]);
 
   useEffect(() => {
     if (startInChatView) {
@@ -285,10 +293,14 @@ export default function AssistantView({
                     <View style={styles.assistantAvatar}>
                       <Ionicons name="sparkles" size={20} color={homeColors.accent} />
                     </View>
-                    <View style={styles.assistantBubble}>
-                      <Text style={styles.bubbleTextAssistant} numberOfLines={10}>
-                        {msg.text}
-                      </Text>
+                    <View style={[styles.assistantBubble, msg.isError && styles.assistantBubbleError]}>
+                      {msg.isLoading ? (
+                        <ActivityIndicator size="small" color={homeColors.accent} />
+                      ) : (
+                        <Text style={[styles.bubbleTextAssistant, msg.isError && styles.bubbleTextError]} numberOfLines={undefined}>
+                          {msg.text}
+                        </Text>
+                      )}
                     </View>
                   </View>
                 )
@@ -401,8 +413,8 @@ export default function AssistantView({
                 underlineColorAndroid="transparent"
               />
               <TouchableOpacity
-                style={[styles.sendBtn, searchQuery.trim().length > 0 && styles.sendBtnActive]}
-                disabled={searchQuery.trim().length === 0}
+                style={[styles.sendBtn, searchQuery.trim().length > 0 && !sending && styles.sendBtnActive]}
+                disabled={searchQuery.trim().length === 0 || sending}
                 onPress={handleSendMessage}
                 activeOpacity={0.7}
               >
@@ -494,10 +506,16 @@ const styles = StyleSheet.create({
   },
   bubbleTextAssistant: {
     fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: '400',
-    lineHeight: 14,
+    lineHeight: 20,
     color: '#6A7282',
+  },
+  bubbleTextError: {
+    color: '#dc2626',
+  },
+  assistantBubbleError: {
+    backgroundColor: 'rgba(220, 38, 38, 0.08)',
   },
   centerSection: {
     width: '100%',
