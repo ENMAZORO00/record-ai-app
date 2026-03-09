@@ -109,6 +109,116 @@ export async function assistantChat(token, messages) {
 }
 
 /**
+ * Get list of chats for the current user.
+ * @param {string} token - Auth token
+ * @param {string} search - Optional search query
+ * @returns {Promise<{ chats: Array<{ id, title, updatedAt }> }>}
+ */
+export async function getChats(token, search = '') {
+  const params = new URLSearchParams();
+  if (search && search.trim()) params.set('search', search.trim());
+  const qs = params.toString();
+  const url = `${getBaseUrl()}/chats${qs ? `?${qs}` : ''}`;
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data?.error || 'Failed to load chats');
+  return data;
+}
+
+/**
+ * Get a single chat with messages.
+ * @param {string} token - Auth token
+ * @param {string} id - Chat ID
+ * @returns {Promise<{ chat: { id, title, messages, updatedAt } }>}
+ */
+export async function getChat(token, id) {
+  const res = await fetch(`${getBaseUrl()}/chats/${id}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data?.error || 'Failed to load chat');
+  return data;
+}
+
+/**
+ * Create a new chat with first user message.
+ * @param {string} token - Auth token
+ * @param {object} body - { title, content }
+ * @returns {Promise<{ chat: { id, title, messages, updatedAt } }>}
+ */
+const CHAT_TIMEOUT_MS = 45000;
+
+export async function createChat(token, body) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), CHAT_TIMEOUT_MS);
+  try {
+    const res = await fetch(`${getBaseUrl()}/chats`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.error || 'Failed to create chat');
+    return data;
+  } catch (err) {
+    if (err.name === 'AbortError') throw new Error('Request timed out. Please try again.');
+    throw err;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+/**
+ * Add message to existing chat.
+ * @param {string} token - Auth token
+ * @param {string} chatId - Chat ID
+ * @param {object} body - { content }
+ * @returns {Promise<{ content: string }>}
+ */
+export async function addChatMessage(token, chatId, body) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), CHAT_TIMEOUT_MS);
+  try {
+    const res = await fetch(`${getBaseUrl()}/chats/${chatId}/messages`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.error || 'Failed to send message');
+    return data;
+  } catch (err) {
+    if (err.name === 'AbortError') throw new Error('Request timed out. Please try again.');
+    throw err;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+/**
+ * Delete a chat.
+ * @param {string} token - Auth token
+ * @param {string} id - Chat ID
+ */
+export async function deleteChat(token, id) {
+  const res = await fetch(`${getBaseUrl()}/chats/${id}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data?.error || 'Failed to delete chat');
+  return data;
+}
+
+/**
  * Delete a transcript (and its audio from Azure).
  * @param {string} token - Auth token
  * @param {string} id - Transcript ID

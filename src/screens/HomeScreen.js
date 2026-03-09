@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -19,7 +19,7 @@ import { Ionicons } from '@expo/vector-icons';
 import Svg, { Path } from 'react-native-svg';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
-import { assistantChat } from '../services/api';
+import { getChats, getChat, createChat, addChatMessage } from '../services/api';
 import { homeColors } from '../theme/homeColors';
 import AssistantView from './home/AssistantView';
 import TaskBarView from './home/TaskBarView';
@@ -44,18 +44,72 @@ export default function HomeScreen() {
   const slideAnim = useRef(new Animated.Value(-242)).current;
 
   const [chatLoading, setChatLoading] = useState(false);
-  // Chats: { id, title, messages: [{ role, text, isLoading?, isError? }] }
-  const [chats, setChats] = useState([]);
+  const [chats, setChats] = useState([]); // { id, title, updatedAt } from API
   const [currentChatId, setCurrentChatId] = useState(null);
+  const [currentMessages, setCurrentMessages] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [chatsLoading, setChatsLoading] = useState(false);
+  const searchDebounceRef = useRef(null);
 
-  const currentMessages = currentChatId
-    ? (chats.find((c) => c.id === currentChatId)?.messages ?? [])
-    : [];
+  const fetchChats = useCallback(
+    async (search = '') => {
+      if (!token) return;
+      setChatsLoading(true);
+      try {
+        const { chats: list } = await getChats(token, search);
+        setChats(list);
+      } catch (err) {
+        // Keep existing chats on error
+      } finally {
+        setChatsLoading(false);
+      }
+    },
+    [token]
+  );
+
+  const fetchChat = useCallback(
+    async (chatId) => {
+      if (!token || !chatId) return;
+      try {
+        const { chat } = await getChat(token, chatId);
+        setCurrentMessages(
+          (chat.messages || []).map((m) => ({
+            role: m.role,
+            text: m.content ?? m.text,
+          }))
+        );
+      } catch (err) {
+        setCurrentMessages([]);
+      }
+    },
+    [token]
+  );
+
+  useEffect(() => {
+    if (sidebarVisible && token) {
+      fetchChats(searchQuery);
+    }
+  }, [sidebarVisible, token, fetchChats]);
+
+  useEffect(() => {
+    return () => {
+      if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (currentChatId && token) {
+      fetchChat(currentChatId);
+    } else {
+      setCurrentMessages([]);
+    }
+  }, [currentChatId, token, fetchChat]);
 
   const handleNewChat = () => {
     closeSidebar();
     setActiveTab('assistant');
     setCurrentChatId(null);
+    setCurrentMessages([]);
     setStartInChatView(true);
     setAssistantResetKey((k) => k + 1);
   };
@@ -74,61 +128,57 @@ export default function HomeScreen() {
     const userMsg = { role: 'user', text: trimmed };
     const assistantPlaceholder = { role: 'assistant', text: '', isLoading: true };
 
-    let chatId = currentChatId;
-    if (chatId) {
-      setChats((prev) =>
-        prev.map((c) =>
-          c.id === chatId
-            ? { ...c, messages: [...c.messages, userMsg, assistantPlaceholder] }
-            : c
-        )
-      );
-    } else {
-      chatId = `chat-${Date.now()}`;
-      const title = trimmed.length > 40 ? `${trimmed.slice(0, 40)}..` : trimmed;
-      setChats((prev) => [
-        { id: chatId, title, messages: [userMsg, assistantPlaceholder] },
-        ...prev,
-      ]);
-      setCurrentChatId(chatId);
-    }
     setChatLoading(true);
 
-    const prevMessages = chats.find((c) => c.id === chatId)?.messages ?? (chatId === currentChatId ? currentMessages : []);
-    const messagesForApi = prevMessages
-      .filter((m) => !m.isLoading && !m.isError)
-      .map((m) => ({ role: m.role, content: m.text || m.content || '' }))
-      .concat([{ role: 'user', content: trimmed }]);
+    if (currentChatId) {
+      setCurrentMessages((prev) => [...prev, userMsg, assistantPlaceholder]);
+      try {
+        const { content } = await addChatMessage(token, currentChatId, { content: trimmed });
+        setCurrentMessages((prev) =>
+          prev.slice(0, -1).concat([{ role: 'assistant', text: content }])
+        );
+        fetchChats(searchQuery);
+      } catch (err) {
+        const errMsg = err?.message || 'Something went wrong. Please try again.';
+        setCurrentMessages((prev) =>
+          prev.slice(0, -1).concat([{ role: 'assistant', text: errMsg, isError: true }])
+        );
+      } finally {
+        setChatLoading(false);
+      }
+      return;
+    }
 
+    setCurrentMessages([userMsg, assistantPlaceholder]);
     try {
-      const { content } = await assistantChat(token, messagesForApi);
-      setChats((prev) =>
-        prev.map((c) =>
-          c.id === chatId
-            ? {
-                ...c,
-                messages: c.messages.slice(0, -1).concat([{ role: 'assistant', text: content }]),
-              }
-            : c
-        )
+      const title = trimmed.length > 40 ? `${trimmed.slice(0, 40)}..` : trimmed;
+      const { chat } = await createChat(token, { title, content: trimmed });
+      setCurrentChatId(chat.id);
+      setCurrentMessages(
+        (chat.messages || []).map((m) => ({
+          role: m.role,
+          text: m.content ?? m.text,
+        }))
       );
+      setChats((prev) => [{ id: chat.id, title: chat.title, updatedAt: chat.updatedAt }, ...prev]);
     } catch (err) {
       const errMsg = err?.message || 'Something went wrong. Please try again.';
-      setChats((prev) =>
-        prev.map((c) =>
-          c.id === chatId
-            ? {
-                ...c,
-                messages: c.messages.slice(0, -1).concat([
-                  { role: 'assistant', text: errMsg, isError: true },
-                ]),
-              }
-            : c
-        )
-      );
+      setCurrentMessages([
+        userMsg,
+        { role: 'assistant', text: errMsg, isError: true },
+      ]);
     } finally {
       setChatLoading(false);
     }
+  };
+
+  const handleSearchChange = (text) => {
+    setSearchQuery(text);
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    searchDebounceRef.current = setTimeout(() => {
+      if (token && sidebarVisible) fetchChats(text);
+      searchDebounceRef.current = null;
+    }, 300);
   };
 
   useEffect(() => {
@@ -350,6 +400,8 @@ export default function HomeScreen() {
                       placeholder="Search"
                       placeholderTextColor="#99A1AF"
                       underlineColorAndroid="transparent"
+                      value={searchQuery}
+                      onChangeText={handleSearchChange}
                     />
                   </View>
                 </View>
@@ -358,7 +410,12 @@ export default function HomeScreen() {
                   showsVerticalScrollIndicator={false}
                 >
                   <View style={styles.chatList}>
-                    {chats.map((chat) => (
+                    {chatsLoading ? (
+                      <Text style={styles.chatItemText}>Loading...</Text>
+                    ) : chats.length === 0 ? (
+                      <Text style={styles.chatItemText}>No chats yet</Text>
+                    ) : (
+                    chats.map((chat) => (
                       <TouchableOpacity
                         key={chat.id}
                         style={[styles.chatItem, currentChatId === chat.id && styles.chatItemActive]}
@@ -369,7 +426,7 @@ export default function HomeScreen() {
                           {chat.title}
                         </Text>
                       </TouchableOpacity>
-                    ))}
+                    )))}
                   </View>
                 </ScrollView>
               </View>
