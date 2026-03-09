@@ -24,8 +24,23 @@ import {
 import { uploadRecording } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { homeColors } from '../../theme/homeColors';
+import Svg, { Path } from 'react-native-svg';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
+
+// Build SVG path for a wavy circle: radius = R + amplitude * sin(waveCount * theta + phase)
+function wavyCirclePath(cx, cy, baseRadius, amplitude, waveCount, phase) {
+  const steps = 64;
+  const points = [];
+  for (let i = 0; i <= steps; i++) {
+    const theta = (i / steps) * Math.PI * 2;
+    const r = baseRadius + amplitude * Math.sin(waveCount * theta + phase);
+    const x = cx + r * Math.cos(theta);
+    const y = cy + r * Math.sin(theta);
+    points.push(`${i === 0 ? 'M' : 'L'} ${x} ${y}`);
+  }
+  return points.join(' ');
+}
 
 const RecordingState = {
   IDLE: 'idle',
@@ -51,6 +66,11 @@ export default function VoiceRecordingScreen() {
   const orbScaleCenter = useRef(new Animated.Value(1)).current;
   const orbOpacity = useRef(new Animated.Value(0.85)).current;
   const orbAnimRef = useRef(null);
+
+  // Wave circumference animation (runs in JS so path can update)
+  const wavePhase = useRef(new Animated.Value(0)).current;
+  const [wavePhaseState, setWavePhaseState] = useState(0);
+  const waveAnimRef = useRef(null);
 
   useEffect(() => {
     recordingRef.current = recording;
@@ -204,63 +224,36 @@ export default function VoiceRecordingScreen() {
 
     const isRecording = recordingState === RecordingState.RECORDING;
     const isPaused = recordingState === RecordingState.PAUSED;
-    const duration = isRecording ? 1200 : isPaused ? 2000 : 1800;
-    const scaleTo = isRecording ? 1.12 : 1.06;
+    const duration = isRecording ? 400 : isPaused ? 550 : 450;
+    const scaleTo = isRecording ? 1.14 : 1.08;
+    const scaleMid = isRecording ? 1.08 : 1.04;
     const opacityTo = isRecording ? 1 : 0.88;
 
     orbAnimRef.current = Animated.loop(
       Animated.sequence([
         Animated.parallel([
-          Animated.timing(orbScale1, {
-            toValue: scaleTo,
-            duration,
-            useNativeDriver: true,
-            easing: Easing.inOut(Easing.ease),
-          }),
-          Animated.timing(orbScale2, {
-            toValue: scaleTo,
-            duration,
-            useNativeDriver: true,
-            easing: Easing.inOut(Easing.ease),
-          }),
-          Animated.timing(orbScaleCenter, {
-            toValue: scaleTo,
-            duration,
-            useNativeDriver: true,
-            easing: Easing.inOut(Easing.ease),
-          }),
-          Animated.timing(orbOpacity, {
-            toValue: opacityTo,
-            duration,
-            useNativeDriver: true,
-            easing: Easing.inOut(Easing.ease),
-          }),
+          Animated.timing(orbScale1, { toValue: scaleMid, duration: duration / 2, useNativeDriver: true, easing: Easing.out(Easing.ease) }),
+          Animated.timing(orbScale2, { toValue: scaleTo, duration: duration / 2, useNativeDriver: true, easing: Easing.out(Easing.ease) }),
+          Animated.timing(orbScaleCenter, { toValue: scaleMid, duration: duration / 2, useNativeDriver: true, easing: Easing.out(Easing.ease) }),
+          Animated.timing(orbOpacity, { toValue: opacityTo, duration: duration / 2, useNativeDriver: true, easing: Easing.out(Easing.ease) }),
         ]),
         Animated.parallel([
-          Animated.timing(orbScale1, {
-            toValue: 1,
-            duration,
-            useNativeDriver: true,
-            easing: Easing.inOut(Easing.ease),
-          }),
-          Animated.timing(orbScale2, {
-            toValue: 1,
-            duration,
-            useNativeDriver: true,
-            easing: Easing.inOut(Easing.ease),
-          }),
-          Animated.timing(orbScaleCenter, {
-            toValue: 1,
-            duration,
-            useNativeDriver: true,
-            easing: Easing.inOut(Easing.ease),
-          }),
-          Animated.timing(orbOpacity, {
-            toValue: 0.85,
-            duration,
-            useNativeDriver: true,
-            easing: Easing.inOut(Easing.ease),
-          }),
+          Animated.timing(orbScale1, { toValue: scaleTo, duration: duration / 2, useNativeDriver: true, easing: Easing.in(Easing.ease) }),
+          Animated.timing(orbScale2, { toValue: scaleMid, duration: duration / 2, useNativeDriver: true, easing: Easing.in(Easing.ease) }),
+          Animated.timing(orbScaleCenter, { toValue: scaleTo, duration: duration / 2, useNativeDriver: true, easing: Easing.in(Easing.ease) }),
+          Animated.timing(orbOpacity, { toValue: 0.9, duration: duration / 2, useNativeDriver: true, easing: Easing.in(Easing.ease) }),
+        ]),
+        Animated.parallel([
+          Animated.timing(orbScale1, { toValue: scaleMid, duration: duration / 2, useNativeDriver: true, easing: Easing.out(Easing.ease) }),
+          Animated.timing(orbScale2, { toValue: 1.02, duration: duration / 2, useNativeDriver: true, easing: Easing.out(Easing.ease) }),
+          Animated.timing(orbScaleCenter, { toValue: scaleMid, duration: duration / 2, useNativeDriver: true, easing: Easing.out(Easing.ease) }),
+          Animated.timing(orbOpacity, { toValue: 0.88, duration: duration / 2, useNativeDriver: true, easing: Easing.out(Easing.ease) }),
+        ]),
+        Animated.parallel([
+          Animated.timing(orbScale1, { toValue: 1, duration: duration / 2, useNativeDriver: true, easing: Easing.in(Easing.ease) }),
+          Animated.timing(orbScale2, { toValue: 1, duration: duration / 2, useNativeDriver: true, easing: Easing.in(Easing.ease) }),
+          Animated.timing(orbScaleCenter, { toValue: 1, duration: duration / 2, useNativeDriver: true, easing: Easing.in(Easing.ease) }),
+          Animated.timing(orbOpacity, { toValue: 0.85, duration: duration / 2, useNativeDriver: true, easing: Easing.in(Easing.ease) }),
         ]),
       ])
     );
@@ -269,6 +262,30 @@ export default function VoiceRecordingScreen() {
       if (orbAnimRef.current) orbAnimRef.current.stop();
     };
   }, [recordingState]);
+
+  // Wave circumference: loop phase 0 -> 2*PI and update state so path re-renders
+  useEffect(() => {
+    const listenerId = wavePhase.addListener(({ value }) => setWavePhaseState(value));
+    const runWave = () => {
+      waveAnimRef.current = Animated.timing(wavePhase, {
+        toValue: Math.PI * 2,
+        duration: 2400,
+        useNativeDriver: false,
+        easing: Easing.linear,
+      });
+      waveAnimRef.current.start(({ finished }) => {
+        if (finished) {
+          wavePhase.setValue(0);
+          runWave();
+        }
+      });
+    };
+    runWave();
+    return () => {
+      wavePhase.removeListener(listenerId);
+      if (waveAnimRef.current) waveAnimRef.current.stop();
+    };
+  }, []);
 
   useEffect(() => {
     requestPermissions();
@@ -328,9 +345,6 @@ export default function VoiceRecordingScreen() {
         </TouchableOpacity>
         <View style={styles.headerCenter}>
           <Text style={styles.headerTitle}>Voice Recording</Text>
-          {hasRecording && (
-            <Text style={styles.durationText}>{formatDuration(recordingDuration)}</Text>
-          )}
         </View>
         <View style={styles.headerSpacer} />
       </View>
@@ -341,6 +355,25 @@ export default function VoiceRecordingScreen() {
 
         {/* Central orb / glowing area — animated */}
         <View style={styles.orbContainer}>
+          {/* Wavy circumference rings (SVG) */}
+          <View style={styles.waveRingsWrap} pointerEvents="none">
+            <Svg width={280} height={280} viewBox="0 0 280 280">
+              <Path
+                d={wavyCirclePath(140, 140, 90, 10, 5, wavePhaseState)}
+                fill="none"
+                stroke="rgba(112, 202, 255, 0.7)"
+                strokeWidth={2.5}
+                strokeLinecap="round"
+              />
+              <Path
+                d={wavyCirclePath(170, 130, 90, 10, 5, wavePhaseState + Math.PI * 0.4)}
+                fill="none"
+                stroke="rgba(174, 108, 255, 0.7)"
+                strokeWidth={2.5}
+                strokeLinecap="round"
+              />
+            </Svg>
+          </View>
           <Animated.View
             style={[
               styles.orbBlur1,
@@ -373,6 +406,11 @@ export default function VoiceRecordingScreen() {
               style={styles.orbGradient}
             />
           </Animated.View>
+          {hasRecording && (
+            <View style={styles.orbTimerOverlay} pointerEvents="none">
+              <Text style={styles.orbTimerText}>{formatDuration(recordingDuration)}</Text>
+            </View>
+          )}
         </View>
 
         {/* Status text */}
@@ -381,19 +419,8 @@ export default function VoiceRecordingScreen() {
           <Text style={styles.statusSubtitle}>{statusSubtitle}</Text>
         </View>
 
-        {/* Bottom controls */}
+        {/* Bottom controls — recording style */}
         <View style={[styles.controls, { bottom: insets.bottom + 100 }]}>
-          <TouchableOpacity
-            style={styles.controlBtn}
-            onPress={() => {}}
-            activeOpacity={0.7}
-            disabled={uploading}
-          >
-            <View style={styles.controlBtnInner}>
-              <Ionicons name="keypad-outline" size={24} color="#2B7FFF" />
-            </View>
-          </TouchableOpacity>
-
           <TouchableOpacity
             style={[styles.micBtnWrap, (isRecording || isPaused) && styles.micBtnWrapActive]}
             onPress={handleMicPress}
@@ -414,17 +441,17 @@ export default function VoiceRecordingScreen() {
                   </>
                 )}
                 <LinearGradient
-                  colors={['#035BFA', '#4084FF', '#658FDB']}
+                  colors={isRecording ? ['#E53935', '#EF5350'] : ['#035BFA', '#4084FF', '#658FDB']}
                   start={{ x: 0.5, y: 0 }}
                   end={{ x: 0.5, y: 1 }}
                   style={styles.micBtn}
                 >
                   {isRecording ? (
-                    <Ionicons name="pause" size={30} color="#FFFFFF" />
+                    <Ionicons name="pause" size={32} color="#FFFFFF" />
                   ) : isPaused ? (
-                    <Ionicons name="play" size={30} color="#FFFFFF" />
+                    <Ionicons name="play" size={32} color="#FFFFFF" />
                   ) : (
-                    <Ionicons name="mic" size={30} color="#FFFFFF" />
+                    <Ionicons name="mic" size={34} color="#FFFFFF" />
                   )}
                 </LinearGradient>
               </>
@@ -432,14 +459,15 @@ export default function VoiceRecordingScreen() {
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.controlBtn, !hasRecording && styles.controlBtnMuted]}
+            style={[styles.stopBtn, !hasRecording && styles.stopBtnDisabled]}
             onPress={hasRecording ? stopAndSave : undefined}
-            activeOpacity={0.7}
+            activeOpacity={0.8}
             disabled={uploading || !hasRecording}
           >
-            <View style={styles.controlBtnInner}>
-              <Ionicons name="stop" size={26} color={hasRecording ? '#2B7FFF' : '#B0BEC5'} />
+            <View style={[styles.stopBtnInner, hasRecording && styles.stopBtnInnerActive]}>
+              <Ionicons name="stop" size={28} color={hasRecording ? '#FFFFFF' : '#9E9E9E'} />
             </View>
+            {hasRecording && <Text style={styles.stopBtnLabel}>Save</Text>}
           </TouchableOpacity>
         </View>
       </View>
@@ -482,11 +510,20 @@ const styles = StyleSheet.create({
     color: '#000000',
     textAlign: 'center',
   },
-  durationText: {
+  orbTimerOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  orbTimerText: {
     fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
-    fontSize: 13,
-    color: '#64748B',
-    marginTop: 2,
+    fontWeight: '700',
+    fontSize: 48,
+    color: '#FFFFFF',
+    textAlign: 'center',
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 4,
   },
   headerSpacer: {
     width: 24,
@@ -511,6 +548,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginVertical: 16,
+  },
+  waveRingsWrap: {
+    position: 'absolute',
+    width: 280,
+    height: 280,
+    left: 0,
+    top: 0,
   },
   orbBlur1: {
     position: 'absolute',
@@ -576,23 +620,8 @@ const styles = StyleSheet.create({
     right: 24,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  controlBtn: {
-    width: 58,
-    height: 58,
-    borderRadius: 29,
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
     justifyContent: 'center',
-    ...Platform.select({
-      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.13, shadowRadius: 6.6 },
-      android: { elevation: 6 },
-    }),
-  },
-  controlBtnInner: {
-    alignItems: 'center',
-    justifyContent: 'center',
+    gap: 32,
   },
   micBtnWrap: {
     width: 156,
@@ -603,8 +632,38 @@ const styles = StyleSheet.create({
   micBtnWrapActive: {
     opacity: 1,
   },
-  controlBtnMuted: {
-    opacity: 0.7,
+  stopBtn: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stopBtnDisabled: {
+    opacity: 0.6,
+  },
+  stopBtnInner: {
+    width: 72,
+    height: 72,
+    borderRadius: 12,
+    backgroundColor: '#E0E0E0',
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...Platform.select({
+      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.15, shadowRadius: 4 },
+      android: { elevation: 4 },
+    }),
+  },
+  stopBtnInnerActive: {
+    backgroundColor: '#E53935',
+    ...Platform.select({
+      ios: { shadowColor: '#E53935', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.35, shadowRadius: 6 },
+      android: { elevation: 6 },
+    }),
+  },
+  stopBtnLabel: {
+    marginTop: 8,
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-medium',
+    fontWeight: '600',
+    fontSize: 13,
+    color: '#E53935',
   },
   micRing1: {
     position: 'absolute',
