@@ -6,11 +6,11 @@ import {
   Animated,
   Dimensions,
   SafeAreaView,
-  Image,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
+import GradientText from '../components/GradientText';
 
 const { width } = Dimensions.get('window');
 
@@ -103,13 +103,9 @@ export default function SplashScreen({ navigation }) {
             },
           ]}
         >
-          {/* Main logo - same as LoginScreen */}
+          {/* Company name branding */}
           <View style={styles.logoWrap}>
-            <Image
-              source={require('../../assets/logo.png')}
-              style={styles.logo}
-              resizeMode="contain"
-            />
+            <GradientText style={styles.logoText}>Shoten AI</GradientText>
           </View>
 
           {/* Tagline */}
@@ -159,6 +155,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   content: {
+    flex: 1,
+    justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 40,
   },
@@ -166,9 +164,9 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     marginBottom: 28,
   },
-  logo: {
-    width: 640,
-    height: 210,
+  logoText: {
+    fontSize: 42,
+    letterSpacing: -0.5,
   },
   tagline: {
     fontSize: 17,

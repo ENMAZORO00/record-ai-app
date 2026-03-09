@@ -8,17 +8,18 @@ import {
   Platform,
   TouchableOpacity,
   SafeAreaView,
-  Image,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { authColors } from '../theme/authColors';
+import GradientText from './GradientText';
 
 export default function AuthLayout({
   title,
   subtitle,
   icon,
   showLogo,
+  titleFontWeight,
   children,
   footer,
   showBack,
@@ -99,18 +100,14 @@ export default function AuthLayout({
               )}
               {showLogo ? (
                 <View style={[styles.logoWrap, compact && styles.logoWrapCompact]}>
-                  <Image
-                    source={require('../../assets/logo.png')}
-                    style={styles.logo}
-                    resizeMode="contain"
-                  />
+                  <GradientText style={styles.logoText}>Shoten AI</GradientText>
                 </View>
               ) :   icon ? (
                 <View style={[styles.iconWrap, styles.iconBg]}>
                   <Ionicons name={icon} size={32} color={authColors.textPrimary} />
                 </View>
               ) : null}
-              <Text style={[styles.title, compact && styles.titleCompact]}>{title}</Text>
+              <Text style={[styles.title, compact && styles.titleCompact, titleFontWeight && { fontWeight: titleFontWeight }]}>{title}</Text>
               {subtitle ? (
                 <Text style={[styles.subtitle, compact && styles.subtitleCompact]}>{subtitle}</Text>
               ) : null}
@@ -169,6 +166,8 @@ const styles = StyleSheet.create({
   },
   card: {
     flex: 1,
+    justifyContent: 'center',
+    position: 'relative',
     backgroundColor: authColors.cardBg,
     borderRadius: 20,
     paddingVertical: 32,
@@ -192,9 +191,9 @@ const styles = StyleSheet.create({
   logoWrapCompact: {
     marginBottom: 6,
   },
-  logo: {
-    width: 640,
-    height: 210,
+  logoText: {
+    fontSize: 42,
+    letterSpacing: -0.5,
   },
   iconWrap: {
     alignSelf: 'center',
@@ -209,8 +208,10 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.05)',
   },
   cardBackBtn: {
-    alignSelf: 'flex-start',
-    marginBottom: 16,
+    position: 'absolute',
+    top: 20,
+    left: 20,
+    zIndex: 1,
   },
   title: {
     fontSize: 28,

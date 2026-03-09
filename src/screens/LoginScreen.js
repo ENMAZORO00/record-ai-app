@@ -41,6 +41,7 @@ export default function LoginScreen({ navigation }) {
     <AuthLayout
       title="Welcome Back"
       showLogo
+      titleFontWeight="400"
     >
       <AuthInput
         label="Email Address"
