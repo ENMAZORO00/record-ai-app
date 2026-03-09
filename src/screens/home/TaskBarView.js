@@ -47,6 +47,9 @@ export default function TaskBarView() {
   const [addLoading, setAddLoading] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [newInfoText, setNewInfoText] = useState('');
+  const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
+  const [noteToDelete, setNoteToDelete] = useState(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   const fetchInfoNotes = useCallback(async (showRefreshing = false) => {
     if (!token) return;
@@ -86,13 +89,28 @@ export default function TaskBarView() {
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!token) return;
+  const handleDeletePress = (id) => {
+    setNoteToDelete(id);
+    setDeleteConfirmVisible(true);
+  };
+
+  const handleDeleteCancel = () => {
+    setDeleteConfirmVisible(false);
+    setNoteToDelete(null);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!token || !noteToDelete) return;
+    setDeleteLoading(true);
     try {
-      await deleteInformation(token, id);
-      setInfoNotes((prev) => prev.filter((item) => item.id !== id));
+      await deleteInformation(token, noteToDelete);
+      setInfoNotes((prev) => prev.filter((item) => item.id !== noteToDelete));
+      setDeleteConfirmVisible(false);
+      setNoteToDelete(null);
     } catch (err) {
       setError(err?.message || 'Failed to delete');
+    } finally {
+      setDeleteLoading(false);
     }
   };
 
@@ -144,7 +162,7 @@ export default function TaskBarView() {
                   <InfoNoteCard
                     key={item.id}
                     text={item.text}
-                    onDelete={() => handleDelete(item.id)}
+                    onDelete={() => handleDeletePress(item.id)}
                   />
                 ))
               )}
@@ -210,6 +228,53 @@ export default function TaskBarView() {
               </View>
             </TouchableOpacity>
           </KeyboardAvoidingView>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        visible={deleteConfirmVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={handleDeleteCancel}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={handleDeleteCancel}
+        >
+          <TouchableOpacity
+            activeOpacity={1}
+            onPress={(e) => e.stopPropagation()}
+            style={[styles.modalContent, styles.deleteModalContent]}
+          >
+            <Text style={styles.modalTitle}>Delete Note</Text>
+            <Text style={styles.deleteConfirmText}>
+              Are you sure you want to delete this note? This cannot be undone.
+            </Text>
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={[styles.modalBtn, styles.modalBtnCancel]}
+                onPress={handleDeleteCancel}
+                activeOpacity={0.7}
+                disabled={deleteLoading}
+              >
+                <Text style={styles.modalBtnCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalBtn, styles.deleteConfirmBtn]}
+                onPress={handleDeleteConfirm}
+                activeOpacity={0.7}
+                disabled={deleteLoading}
+              >
+                {deleteLoading ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.modalBtnAddText}>Delete</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
         </TouchableOpacity>
       </Modal>
     </View>
@@ -312,7 +377,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(0, 0, 0, 0.07)',
+    borderColor: 'rgba(0, 0, 0, 0.28)',
     gap: 10,
     ...Platform.select({
       ios: {
@@ -433,5 +498,19 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     fontSize: 16,
     color: '#FFFFFF',
+  },
+  deleteModalContent: {
+    marginHorizontal: 24,
+  },
+  deleteConfirmText: {
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
+    fontSize: 15,
+    color: '#6A7282',
+    lineHeight: 22,
+    marginBottom: 24,
+  },
+  deleteConfirmBtn: {
+    backgroundColor: '#DC2626',
+    borderColor: '#DC2626',
   },
 });
