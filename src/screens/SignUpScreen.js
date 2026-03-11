@@ -65,7 +65,7 @@ export default function SignUpScreen({ navigation }) {
   );
 
   return (
-    <AuthLayout title="Join Record AI" titleBottomMargin={40} compact>
+    <AuthLayout title="Join Shoten AI" titleBottomMargin={40} compact>
       <View style={styles.form}>
         <AuthInput
           label="Full Name"

@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Record AI",
+    "name": "Shoten AI",
     "slug": "notes-app",
     "version": "1.0.0",
     "scheme": "notes",
@@ -14,7 +14,7 @@
       [
         "expo-av",
         {
-          "microphonePermission": "Allow Record AI to access your microphone for recording conversations."
+          "microphonePermission": "Allow Shoten AI to access your microphone for recording conversations."
         }
       ]
     ]

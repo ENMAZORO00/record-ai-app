@@ -1,5 +1,5 @@
 /**
- * Record AI Auth Theme
+ * Shoten AI Auth Theme
  * iPhone-inspired premium monochrome
  */
 export const authColors = {
