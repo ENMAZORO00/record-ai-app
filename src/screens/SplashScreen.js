@@ -10,13 +10,14 @@ import {
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
+import LogoIcon from '../components/LogoIcon';
 import GradientText from '../components/GradientText';
 
 const { width } = Dimensions.get('window');
 
-// Premium monochrome palette
 const colors = {
-  bg: '#fafafa',
+  bg: '#ffffff',
+  bgOriginal: '#fafafa',
   textPrimary: '#0a0a0a',
   textSecondary: '#525252',
   textMuted: '#a3a3a3',
@@ -24,6 +25,8 @@ const colors = {
   progressTrack: '#ebebeb',
   progressFill: '#171717',
 };
+
+const PROGRESS_BAR_WIDTH = Math.min(240, width - 80);
 
 export default function SplashScreen({ navigation }) {
   const { isAuthenticated, loading } = useAuth();
@@ -33,17 +36,18 @@ export default function SplashScreen({ navigation }) {
   loadingRef.current = loading;
   authRef.current = isAuthenticated;
 
+  const [phase, setPhase] = useState(1); // 1 = new splash, 2 = original splash
+  const [percent, setPercent] = useState(0);
+
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.96)).current;
   const progressAnim = useRef(new Animated.Value(0)).current;
-  const [percent, setPercent] = useState(0);
 
   useEffect(() => {
-    // Entrance animation
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,
-        duration: 800,
+        duration: 600,
         useNativeDriver: true,
       }),
       Animated.spring(scaleAnim, {
@@ -53,8 +57,18 @@ export default function SplashScreen({ navigation }) {
         useNativeDriver: true,
       }),
     ]).start();
+  }, [fadeAnim, scaleAnim]);
 
-    // Progress bar fill over ~2s
+  // Switch to original splash after ~1.5s
+  useEffect(() => {
+    const t = setTimeout(() => setPhase(2), 1500);
+    return () => clearTimeout(t);
+  }, []);
+
+  // Phase 2: run progress bar and set splashMinRef
+  useEffect(() => {
+    if (phase !== 2) return;
+
     const listenerId = progressAnim.addListener(({ value }) => {
       setPercent(Math.round(value * 100));
     });
@@ -64,7 +78,6 @@ export default function SplashScreen({ navigation }) {
       useNativeDriver: false,
     }).start();
 
-    // Navigate based on auth after splash minimum
     const navTimer = setTimeout(() => {
       splashMinRef.current = true;
       if (!loadingRef.current) {
@@ -76,7 +89,7 @@ export default function SplashScreen({ navigation }) {
       clearTimeout(navTimer);
       progressAnim.removeListener(listenerId);
     };
-  }, [fadeAnim, scaleAnim, progressAnim, navigation]);
+  }, [phase, progressAnim, navigation]);
 
   useEffect(() => {
     if (!loading && splashMinRef.current) {
@@ -84,14 +97,18 @@ export default function SplashScreen({ navigation }) {
     }
   }, [loading, isAuthenticated, navigation]);
 
-  const PROGRESS_BAR_WIDTH = Math.min(240, width - 80);
   const progressWidth = progressAnim.interpolate({
     inputRange: [0, 1],
     outputRange: [0, PROGRESS_BAR_WIDTH],
   });
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.bg }]}>
+    <View
+      style={[
+        styles.container,
+        { backgroundColor: phase === 1 ? colors.bg : colors.bgOriginal },
+      ]}
+    >
       <StatusBar style="dark" />
       <SafeAreaView style={styles.safeArea}>
         <Animated.View
@@ -103,42 +120,45 @@ export default function SplashScreen({ navigation }) {
             },
           ]}
         >
-          {/* Company name branding */}
-          <View style={styles.logoWrap}>
-            <GradientText style={styles.logoText}>Shoten AI</GradientText>
-          </View>
-
-          {/* Tagline */}
-          <Text style={styles.tagline}>
-            Remember every conversation. Search. Act. Succeed.
-          </Text>
-
-          {/* Feature tags - monochrome */}
-          <View style={styles.tags}>
-            <View style={styles.tag}>
-              <Text style={styles.tagText}>Transcripts</Text>
-            </View>
-            <View style={styles.tag}>
-              <Text style={styles.tagText}>Action Items</Text>
-            </View>
-            <View style={styles.tag}>
-              <Text style={styles.tagText}>AI Search</Text>
-            </View>
-          </View>
-
-          {/* Loading section */}
-          <View style={styles.loadingSection}>
-            <View style={styles.loadingRow}>
-              <Ionicons name="sparkles-outline" size={12} color={colors.textMuted} />
-              <Text style={styles.loadingText}>Loading your experience</Text>
-            </View>
-            <View style={[styles.progressTrack, { width: PROGRESS_BAR_WIDTH }]}>
-              <Animated.View style={[styles.progressFillWrap, { width: progressWidth }]}>
-                <View style={[styles.progressFill, { backgroundColor: colors.progressFill }]} />
-              </Animated.View>
-            </View>
-            <Text style={styles.percentText}>{percent}%</Text>
-          </View>
+          {phase === 1 ? (
+            <>
+              <LogoIcon size={Math.min(128, width * 0.35)} />
+              <Text style={styles.logoText}>Shoten AI</Text>
+              <Text style={styles.subtitle}>Voice Intelligence Platform</Text>
+            </>
+          ) : (
+            <>
+              <View style={styles.logoWrap}>
+                <GradientText style={styles.gradientLogo}>Shoten AI</GradientText>
+              </View>
+              <Text style={styles.tagline}>
+                Remember every conversation. Search. Act. Succeed.
+              </Text>
+              <View style={styles.tags}>
+                <View style={styles.tag}>
+                  <Text style={styles.tagText}>Transcripts</Text>
+                </View>
+                <View style={styles.tag}>
+                  <Text style={styles.tagText}>Action Items</Text>
+                </View>
+                <View style={styles.tag}>
+                  <Text style={styles.tagText}>AI Search</Text>
+                </View>
+              </View>
+              <View style={styles.loadingSection}>
+                <View style={styles.loadingRow}>
+                  <Ionicons name="sparkles-outline" size={12} color={colors.textMuted} />
+                  <Text style={styles.loadingText}>Loading your experience</Text>
+                </View>
+                <View style={[styles.progressTrack, { width: PROGRESS_BAR_WIDTH }]}>
+                  <Animated.View style={[styles.progressFillWrap, { width: progressWidth }]}>
+                    <View style={[styles.progressFill, { backgroundColor: colors.progressFill }]} />
+                  </Animated.View>
+                </View>
+                <Text style={styles.percentText}>{percent}%</Text>
+              </View>
+            </>
+          )}
         </Animated.View>
       </SafeAreaView>
     </View>
@@ -160,11 +180,25 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 40,
   },
+  logoText: {
+    fontSize: 32,
+    fontWeight: '700',
+    color: colors.textPrimary,
+    letterSpacing: -0.5,
+    marginTop: 20,
+    marginBottom: 4,
+  },
+  subtitle: {
+    fontSize: 15,
+    fontWeight: '400',
+    color: colors.textSecondary,
+    letterSpacing: 0.2,
+  },
   logoWrap: {
     alignSelf: 'center',
     marginBottom: 28,
   },
-  logoText: {
+  gradientLogo: {
     fontSize: 42,
     letterSpacing: -0.5,
   },

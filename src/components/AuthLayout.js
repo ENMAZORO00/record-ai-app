@@ -20,6 +20,7 @@ export default function AuthLayout({
   icon,
   showLogo,
   titleFontWeight,
+  titleBottomMargin,
   children,
   footer,
   showBack,
@@ -107,7 +108,7 @@ export default function AuthLayout({
                   <Ionicons name={icon} size={32} color={authColors.textPrimary} />
                 </View>
               ) : null}
-              <Text style={[styles.title, compact && styles.titleCompact, titleFontWeight && { fontWeight: titleFontWeight }]}>{title}</Text>
+              <Text style={[styles.title, compact && styles.titleCompact, titleFontWeight && { fontWeight: titleFontWeight }, titleBottomMargin != null && { marginBottom: titleBottomMargin }]}>{title}</Text>
               {subtitle ? (
                 <Text style={[styles.subtitle, compact && styles.subtitleCompact]}>{subtitle}</Text>
               ) : null}
