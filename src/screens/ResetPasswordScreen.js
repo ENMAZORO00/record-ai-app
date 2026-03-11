@@ -81,7 +81,6 @@ export default function ResetPasswordScreen({ navigation, route }) {
       <AuthLayout
         title="Password Reset!"
         subtitle="Your password has been successfully changed."
-        showLogo
       >
         <View style={styles.successCard}>
           <View style={styles.successIconWrap}>
@@ -104,7 +103,6 @@ export default function ResetPasswordScreen({ navigation, route }) {
     <AuthLayout
       title="Reset Password"
       subtitle="Create a strong new password"
-      showLogo
       showCardBack
       onCardBack={() => navigation.replace('ForgotPassword')}
     >
