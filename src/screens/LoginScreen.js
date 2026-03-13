@@ -78,9 +78,10 @@ export default function LoginScreen({ navigation }) {
       {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
       <AuthButton
-        title="Sign In"
+        title="Log in"
         onPress={handleLogin}
         loading={loading}
+        primaryStyle="solid"
       />
 
       {Platform.OS === 'web' && GOOGLE_WEB_CLIENT_ID ? (

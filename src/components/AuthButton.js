@@ -15,30 +15,34 @@ export default function AuthButton({
   title,
   onPress,
   variant = 'primary',
+  primaryStyle = 'glass',
   loading = false,
   disabled = false,
   icon,
 }) {
   const isPrimary = variant === 'primary';
+  const isSolid = isPrimary && primaryStyle === 'solid';
 
   const content = (
     <View style={styles.content}>
       {loading ? (
-        <ActivityIndicator color={isPrimary ? authColors.textPrimary : authColors.primary} />
+        <ActivityIndicator
+          color={isSolid ? '#fff' : isPrimary ? authColors.textPrimary : authColors.primary}
+        />
       ) : (
         <>
           {icon ? (
             <Ionicons
               name={icon}
               size={20}
-              color={isPrimary ? authColors.textPrimary : authColors.primary}
+              color={isSolid ? '#fff' : isPrimary ? authColors.textPrimary : authColors.primary}
               style={styles.icon}
             />
           ) : null}
           <Text
             style={[
               styles.text,
-              isPrimary ? styles.textPrimary : styles.textSecondary,
+              isSolid ? styles.textSolid : isPrimary ? styles.textPrimary : styles.textSecondary,
             ]}
           >
             {title}
@@ -49,6 +53,22 @@ export default function AuthButton({
   );
 
   if (isPrimary) {
+    if (isSolid) {
+      return (
+        <TouchableOpacity
+          onPress={onPress}
+          disabled={disabled || loading}
+          activeOpacity={0.85}
+          style={[
+            styles.button,
+            styles.solid,
+            (disabled || loading) && styles.disabled,
+          ]}
+        >
+          {content}
+        </TouchableOpacity>
+      );
+    }
     return (
       <TouchableOpacity
         onPress={onPress}
@@ -93,6 +113,12 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     overflow: 'hidden',
   },
+  solid: {
+    backgroundColor: '#E53935',
+    borderRadius: 26,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   glass: {
     borderWidth: 1,
     borderColor: 'rgba(0, 0, 0, 0.12)',
@@ -124,6 +150,7 @@ const styles = StyleSheet.create({
   disabled: { opacity: 0.6 },
   text: { fontSize: 16, fontWeight: '600' },
   textPrimary: { color: authColors.textPrimary },
+  textSolid: { color: '#ffffff' },
   textSecondary: { color: authColors.primary },
   icon: { marginRight: 8 },
 });

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import * as WebBrowser from 'expo-web-browser';
 import * as Google from 'expo-auth-session/providers/google';
 import { authApi } from '../services/api';
@@ -43,11 +44,10 @@ export default function GoogleLoginButton({ onSuccess, onError }) {
       style={styles.button}
       onPress={handlePress}
       disabled={!request || loading}
+      activeOpacity={0.8}
     >
       <View style={styles.content}>
-        <View style={styles.icon}>
-          <Text style={styles.g}>G</Text>
-        </View>
+        <Ionicons name="logo-google" size={20} color="#4285F4" style={styles.icon} />
         <Text style={styles.text}>
           {loading ? 'Signing in...' : 'Continue with Google'}
         </Text>
@@ -58,14 +58,14 @@ export default function GoogleLoginButton({ onSuccess, onError }) {
 
 const styles = StyleSheet.create({
   button: {
+    height: 52,
     marginTop: 16,
-    paddingVertical: 14,
-    paddingHorizontal: 20,
-    borderRadius: 12,
+    borderRadius: 26,
     backgroundColor: '#fff',
     borderWidth: 1,
-    borderColor: authColors.inputBorder,
+    borderColor: '#dadce0',
     alignItems: 'center',
+    justifyContent: 'center',
   },
   content: {
     flexDirection: 'row',
@@ -73,23 +73,11 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   icon: {
-    width: 24,
-    height: 24,
-    borderRadius: 4,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#dadce0',
-  },
-  g: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#4285f4',
+    marginRight: 0,
   },
   text: {
     fontSize: 16,
     fontWeight: '500',
-    color: authColors.textPrimary,
+    color: '#3c4043',
   },
 });
