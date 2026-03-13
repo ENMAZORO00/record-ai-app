@@ -1,12 +1,16 @@
 import React, { useState } from "react";
-import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, Platform } from "react-native";
 import AuthLayout from "../components/AuthLayout";
 import AuthInput from "../components/AuthInput";
 import AuthButton from "../components/AuthButton";
+import GoogleLoginButton from "../components/GoogleLoginButton";
 import { authApi } from "../services/api";
+import { useAuth } from "../context/AuthContext";
 import { authColors } from "../theme/authColors";
+import { GOOGLE_WEB_CLIENT_ID } from "../constants/config";
 
 export default function SignUpScreen({ navigation }) {
+  const { signIn } = useAuth();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -46,6 +50,11 @@ export default function SignUpScreen({ navigation }) {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleGoogleSuccess = (user, token) => {
+    signIn(user, token);
+    navigation.reset({ index: 0, routes: [{ name: "Home" }] });
   };
 
   const footer = (
@@ -113,6 +122,16 @@ export default function SignUpScreen({ navigation }) {
           icon="person-add-outline"
         />
 
+        {Platform.OS === "web" && GOOGLE_WEB_CLIENT_ID ? (
+          <View style={styles.orSection}>
+            <Text style={styles.orText}>OR</Text>
+            <GoogleLoginButton
+              onSuccess={handleGoogleSuccess}
+              onError={setError}
+            />
+          </View>
+        ) : null}
+
         {footer}
       </View>
     </AuthLayout>
@@ -122,6 +141,16 @@ export default function SignUpScreen({ navigation }) {
 const styles = StyleSheet.create({
   form: {
     gap: 22,
+  },
+  orSection: {
+    marginTop: 8,
+  },
+  orText: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: authColors.textPrimary,
+    textAlign: "center",
+    marginBottom: 16,
   },
   errorText: {
     fontSize: 14,
