@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
 import AuthLayout from '../components/AuthLayout';
 import AuthInput from '../components/AuthInput';
 import AuthButton from '../components/AuthButton';
+import GoogleLoginButton from '../components/GoogleLoginButton';
 import { authApi } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { authColors } from '../theme/authColors';
+import { GOOGLE_WEB_CLIENT_ID } from '../constants/config';
 
 export default function LoginScreen({ navigation }) {
   const { signIn } = useAuth();
@@ -13,6 +15,11 @@ export default function LoginScreen({ navigation }) {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  const handleGoogleSuccess = (user, token) => {
+    signIn(user, token);
+    navigation.reset({ index: 0, routes: [{ name: 'Home' }] });
+  };
 
   const handleLogin = async () => {
     setError('');
@@ -75,6 +82,13 @@ export default function LoginScreen({ navigation }) {
         onPress={handleLogin}
         loading={loading}
       />
+
+      {Platform.OS === 'web' && GOOGLE_WEB_CLIENT_ID ? (
+        <GoogleLoginButton
+          onSuccess={handleGoogleSuccess}
+          onError={setError}
+        />
+      ) : null}
 
       <View style={styles.footer}>
         <Text style={styles.footerText}>Don't have an account? </Text>

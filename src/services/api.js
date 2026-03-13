@@ -356,4 +356,10 @@ export const authApi = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, otp, newPassword, confirmPassword }),
     }).then(handleResponse),
+  googleLogin: (idToken) =>
+    fetch(`${getBaseUrl()}/auth/google`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ idToken }),
+    }).then(handleResponse),
 };
