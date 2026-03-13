@@ -284,6 +284,59 @@ export async function deleteTranscript(token, id) {
 }
 
 /**
+ * Get shares for a transcript (owner only).
+ * @param {string} token - Auth token
+ * @param {string} transcriptId - Transcript ID
+ * @returns {Promise<Array<{ email: string, name: string }>>}
+ */
+export async function getTranscriptShares(token, transcriptId) {
+  const res = await fetch(`${getBaseUrl()}/transcripts/${transcriptId}/shares`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data?.error || 'Failed to load shares');
+  return data;
+}
+
+/**
+ * Share transcript with a user by email.
+ * @param {string} token - Auth token
+ * @param {string} transcriptId - Transcript ID
+ * @param {string} email - Recipient email
+ */
+export async function shareTranscript(token, transcriptId, email) {
+  const res = await fetch(`${getBaseUrl()}/transcripts/${transcriptId}/share`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ email: (email || '').trim().toLowerCase() }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data?.error || 'Failed to share');
+  return data;
+}
+
+/**
+ * Unshare transcript from a user.
+ * @param {string} token - Auth token
+ * @param {string} transcriptId - Transcript ID
+ * @param {string} email - Email to remove
+ */
+export async function unshareTranscript(token, transcriptId, email) {
+  const emailEncoded = encodeURIComponent((email || '').trim().toLowerCase());
+  const res = await fetch(`${getBaseUrl()}/transcripts/${transcriptId}/share?email=${emailEncoded}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data?.error || 'Failed to unshare');
+  }
+}
+
+/**
  * Get a single transcript with conversations.
  */
 export async function getTranscript(token, id) {

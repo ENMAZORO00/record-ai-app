@@ -18,7 +18,7 @@ import { BlurView } from 'expo-blur';
 import { Audio } from 'expo-av';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
-import { getTranscripts, getTranscript, searchTranscripts, deleteTranscript } from '../../services/api';
+import { getTranscripts, getTranscript, searchTranscripts, deleteTranscript, getTranscriptShares, shareTranscript, unshareTranscript } from '../../services/api';
 import { homeColors } from '../../theme/homeColors';
 
 function formatTranscriptDate(iso) {
@@ -55,13 +55,19 @@ function TranscriptCard({ item, onPress }) {
   const snippet = getSnippet(item);
   const dateStr = formatTranscriptDate(item.createdAt);
   const timeStr = formatTranscriptTime(item.createdAt);
+  const isOwner = item.isOwner !== false;
 
   return (
     <TouchableOpacity style={styles.card} onPress={() => onPress(item)} activeOpacity={0.85}>
       <View style={styles.cardInner}>
-        <Text style={styles.cardSnippet} numberOfLines={3}>
-          {snippet}
-        </Text>
+        <View style={styles.cardHeaderRow}>
+          <Text style={styles.cardSnippet} numberOfLines={3}>
+            {snippet}
+          </Text>
+          <View style={[styles.ownerBadge, !isOwner && styles.sharedBadge]}>
+            <Text style={[styles.ownerBadgeText, !isOwner && styles.sharedBadgeText]}>{isOwner ? 'Mine' : 'Shared'}</Text>
+          </View>
+        </View>
         <View style={styles.cardMeta}>
           <View style={styles.cardMetaLeft}>
             <View style={styles.metaItem}>
@@ -89,6 +95,10 @@ function ConversationDetail({ transcriptId, initialTranscript, token, onClose, o
   const [detailError, setDetailError] = useState(null);
   const [deleting, setDeleting] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [shares, setShares] = useState([]);
+  const [shareEmail, setShareEmail] = useState('');
+  const [shareLoading, setShareLoading] = useState(false);
+  const [shareError, setShareError] = useState(null);
   const lines = transcript?.Conversation ?? [];
   const recordingUrl = transcript?.recordingUrl;
   const [sound, setSound] = useState(null);
@@ -130,6 +140,50 @@ function ConversationDetail({ transcriptId, initialTranscript, token, onClose, o
         if (isMounted.current) setDetailLoading(false);
       });
   }, [transcriptId, token]);
+
+  const isOwner = transcript?.isOwner !== false;
+
+  useEffect(() => {
+    if (!transcriptId || !token || !isOwner || String(transcriptId).startsWith('dummy-')) {
+      setShares([]);
+      return;
+    }
+    getTranscriptShares(token, transcriptId)
+      .then((data) => isMounted.current && setShares(Array.isArray(data) ? data : []))
+      .catch(() => isMounted.current && setShares([]));
+  }, [transcriptId, token, isOwner]);
+
+  const handleShare = async () => {
+    const email = shareEmail.trim().toLowerCase();
+    if (!email || !transcriptId || !token || String(transcriptId).startsWith('dummy-')) return;
+    setShareLoading(true);
+    setShareError(null);
+    try {
+      await shareTranscript(token, transcriptId, email);
+      setShareEmail('');
+      const updated = await getTranscriptShares(token, transcriptId);
+      setShares(Array.isArray(updated) ? updated : []);
+    } catch (err) {
+      setShareError(err?.message || 'Failed to share');
+    } finally {
+      setShareLoading(false);
+    }
+  };
+
+  const handleUnshare = async (email) => {
+    if (!transcriptId || !token || String(transcriptId).startsWith('dummy-')) return;
+    setShareLoading(true);
+    setShareError(null);
+    try {
+      await unshareTranscript(token, transcriptId, email);
+      const updated = await getTranscriptShares(token, transcriptId);
+      setShares(Array.isArray(updated) ? updated : []);
+    } catch (err) {
+      setShareError(err?.message || 'Failed to unshare');
+    } finally {
+      setShareLoading(false);
+    }
+  };
 
   useEffect(() => {
     isMounted.current = true;
@@ -355,7 +409,52 @@ function ConversationDetail({ transcriptId, initialTranscript, token, onClose, o
                 </View>
               ))
             )}
-            {transcript && transcriptId && !String(transcriptId).startsWith('dummy-') && (
+            {transcript && transcriptId && !String(transcriptId).startsWith('dummy-') && isOwner && (
+              <View style={styles.shareSection}>
+                <Text style={styles.shareSectionTitle}>Share with others</Text>
+                <Text style={styles.shareHint}>Share with up to 3 people. They can view, listen, and chat with this transcript.</Text>
+                <View style={styles.shareInputRow}>
+                  <TextInput
+                    style={styles.shareInput}
+                    placeholder="Enter email address"
+                    placeholderTextColor="#99A1AF"
+                    value={shareEmail}
+                    onChangeText={(t) => { setShareEmail(t); setShareError(null); }}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    returnKeyType="done"
+                    onSubmitEditing={handleShare}
+                    editable={!shareLoading && shares.length < 3}
+                  />
+                  <TouchableOpacity
+                    style={[styles.shareButton, (shareLoading || !shareEmail.trim() || shares.length >= 3) && styles.shareButtonDisabled]}
+                    onPress={handleShare}
+                    disabled={shareLoading || !shareEmail.trim() || shares.length >= 3}
+                  >
+                    {shareLoading ? <ActivityIndicator size="small" color="#fff" /> : <Text style={styles.shareButtonText}>Add</Text>}
+                  </TouchableOpacity>
+                </View>
+                {shareError ? <Text style={styles.shareErrorText}>{shareError}</Text> : null}
+                {shares.length > 0 && (
+                  <View style={styles.sharesList}>
+                    {shares.map((s) => (
+                      <View key={s.email} style={styles.shareRow}>
+                        <Text style={styles.shareRowEmail}>{s.email}</Text>
+                        <TouchableOpacity
+                          onPress={() => handleUnshare(s.email)}
+                          disabled={shareLoading}
+                          style={styles.unshareButton}
+                        >
+                          <Ionicons name="close-circle" size={22} color="#DC2626" />
+                        </TouchableOpacity>
+                      </View>
+                    ))}
+                  </View>
+                )}
+              </View>
+            )}
+            {transcript && transcriptId && !String(transcriptId).startsWith('dummy-') && isOwner && (
               <View style={styles.deleteSection}>
                 {showDeleteConfirm ? (
                   <View style={styles.deleteConfirmBox}>
@@ -652,6 +751,29 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: 10,
   },
+  cardHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  ownerBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    backgroundColor: 'rgba(139, 92, 246, 0.15)',
+  },
+  sharedBadge: {
+    backgroundColor: 'rgba(99, 102, 241, 0.15)',
+  },
+  sharedBadgeText: {
+    color: '#6366F1',
+  },
+  ownerBadgeText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: homeColors.accent,
+  },
   cardSnippet: {
     fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
     fontWeight: '500',
@@ -909,6 +1031,83 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: homeColors.textPrimary,
     lineHeight: 24,
+  },
+  shareSection: {
+    marginTop: 24,
+    padding: 16,
+    backgroundColor: 'rgba(152, 16, 250, 0.06)',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(152, 16, 250, 0.15)',
+  },
+  shareSectionTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: homeColors.textPrimary,
+    marginBottom: 6,
+  },
+  shareHint: {
+    fontSize: 13,
+    color: homeColors.textSecondary,
+    marginBottom: 12,
+    lineHeight: 20,
+  },
+  shareInputRow: {
+    flexDirection: 'row',
+    gap: 10,
+    alignItems: 'center',
+  },
+  shareInput: {
+    flex: 1,
+    fontSize: 15,
+    color: homeColors.textPrimary,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: 'rgba(153, 161, 175, 0.35)',
+  },
+  shareButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 10,
+    backgroundColor: homeColors.accent,
+  },
+  shareButtonDisabled: {
+    opacity: 0.5,
+  },
+  shareButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#fff',
+  },
+  shareErrorText: {
+    fontSize: 13,
+    color: '#DC2626',
+    marginTop: 8,
+  },
+  sharesList: {
+    marginTop: 12,
+    gap: 8,
+  },
+  shareRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(153, 161, 175, 0.25)',
+  },
+  shareRowEmail: {
+    fontSize: 14,
+    color: homeColors.textPrimary,
+  },
+  unshareButton: {
+    padding: 4,
   },
   deleteSection: {
     marginTop: 24,
