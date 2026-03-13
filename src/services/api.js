@@ -362,4 +362,12 @@ export const authApi = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ idToken }),
     }).then(handleResponse),
+  logout: (token) =>
+    fetch(`${getBaseUrl()}/auth/logout`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+    }).then(handleResponse),
 };

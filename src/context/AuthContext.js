@@ -1,5 +1,6 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { authApi } from '../services/api';
 
 const TOKEN_KEY = '@notes_token';
 const USER_KEY = '@notes_user';
@@ -42,6 +43,13 @@ export function AuthProvider({ children }) {
   };
 
   const signOut = async () => {
+    try {
+      if (token) {
+        await authApi.logout(token);
+      }
+    } catch (e) {
+      // Still sign out locally if API fails (expired token, network error)
+    }
     await Promise.all([
       AsyncStorage.removeItem(TOKEN_KEY),
       AsyncStorage.removeItem(USER_KEY),
