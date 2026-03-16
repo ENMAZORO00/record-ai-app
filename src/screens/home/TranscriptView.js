@@ -56,6 +56,9 @@ function TranscriptCard({ item, onPress }) {
   const dateStr = formatTranscriptDate(item.createdAt);
   const timeStr = formatTranscriptTime(item.createdAt);
   const isOwner = item.isOwner !== false;
+  const isMeeting = !!item.meetingId;
+  const badgeLabel = isMeeting ? 'Meeting' : (isOwner ? 'Mine' : 'Shared');
+  const badgeStyle = isMeeting ? styles.meetingBadge : (!isOwner ? styles.sharedBadge : null);
 
   return (
     <TouchableOpacity style={styles.card} onPress={() => onPress(item)} activeOpacity={0.85}>
@@ -64,8 +67,8 @@ function TranscriptCard({ item, onPress }) {
           <Text style={styles.cardSnippet} numberOfLines={3}>
             {snippet}
           </Text>
-          <View style={[styles.ownerBadge, !isOwner && styles.sharedBadge]}>
-            <Text style={[styles.ownerBadgeText, !isOwner && styles.sharedBadgeText]}>{isOwner ? 'Mine' : 'Shared'}</Text>
+          <View style={[styles.ownerBadge, badgeStyle]}>
+            <Text style={[styles.ownerBadgeText, !isOwner && styles.sharedBadgeText, isMeeting && styles.meetingBadgeText]}>{badgeLabel}</Text>
           </View>
         </View>
         <View style={styles.cardMeta}>
@@ -89,8 +92,11 @@ function TranscriptCard({ item, onPress }) {
   );
 }
 
-function ConversationDetail({ transcriptId, initialTranscript, token, onClose, onDeleted }) {
+function ConversationDetail({ transcriptId, initialTranscript, token, user, onClose, onDeleted }) {
   const [transcript, setTranscript] = useState(initialTranscript ?? null);
+  const canDelete = transcript
+    ? (transcript.meetingId ? user?.companyRole === 'admin' : transcript.isOwner !== false)
+    : false;
   const [detailLoading, setDetailLoading] = useState(!!transcriptId);
   const [detailError, setDetailError] = useState(null);
   const [deleting, setDeleting] = useState(false);
@@ -409,7 +415,7 @@ function ConversationDetail({ transcriptId, initialTranscript, token, onClose, o
                 </View>
               ))
             )}
-            {transcript && transcriptId && !String(transcriptId).startsWith('dummy-') && isOwner && (
+            {transcript && transcriptId && !String(transcriptId).startsWith('dummy-') && isOwner && !transcript.meetingId && (
               <View style={styles.shareSection}>
                 <Text style={styles.shareSectionTitle}>Share with others</Text>
                 <Text style={styles.shareHint}>Share with up to 3 people. They can view, listen, and chat with this transcript.</Text>
@@ -454,7 +460,7 @@ function ConversationDetail({ transcriptId, initialTranscript, token, onClose, o
                 )}
               </View>
             )}
-            {transcript && transcriptId && !String(transcriptId).startsWith('dummy-') && isOwner && (
+            {transcript && transcriptId && !String(transcriptId).startsWith('dummy-') && canDelete && (
               <View style={styles.deleteSection}>
                 {showDeleteConfirm ? (
                   <View style={styles.deleteConfirmBox}>
@@ -504,7 +510,7 @@ function ConversationDetail({ transcriptId, initialTranscript, token, onClose, o
 const SEARCH_DEBOUNCE_MS = 500;
 
 export default function TranscriptView() {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const [list, setList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -651,6 +657,7 @@ export default function TranscriptView() {
         transcriptId={selected?.id}
         initialTranscript={selected}
         token={token}
+        user={user}
         onClose={() => setSelected(null)}
         onDeleted={() => load(true)}
       />
@@ -765,6 +772,12 @@ const styles = StyleSheet.create({
   },
   sharedBadge: {
     backgroundColor: 'rgba(99, 102, 241, 0.15)',
+  },
+  meetingBadge: {
+    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+  },
+  meetingBadgeText: {
+    color: '#059669',
   },
   sharedBadgeText: {
     color: '#6366F1',

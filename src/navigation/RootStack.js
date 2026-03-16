@@ -7,6 +7,10 @@ import VerifyOTPScreen from '../screens/VerifyOTPScreen';
 import LoginScreen from '../screens/LoginScreen';
 import ForgotPasswordScreen from '../screens/ForgotPasswordScreen';
 import ResetPasswordScreen from '../screens/ResetPasswordScreen';
+import RegisterCompanyScreen from '../screens/RegisterCompanyScreen';
+import AcceptInviteScreen from '../screens/AcceptInviteScreen';
+import TeamScreen from '../screens/TeamScreen';
+import InviteMembersScreen from '../screens/InviteMembersScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -22,6 +26,10 @@ export default function RootStack() {
       <Stack.Screen name="Login" component={LoginScreen} />
       <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
       <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
+      <Stack.Screen name="RegisterCompany" component={RegisterCompanyScreen} />
+      <Stack.Screen name="AcceptInvite" component={AcceptInviteScreen} />
+      <Stack.Screen name="Team" component={TeamScreen} />
+      <Stack.Screen name="InviteMembers" component={InviteMembersScreen} />
       <Stack.Screen name="Home" component={HomeScreen} />
       <Stack.Screen name="VoiceRecording" component={VoiceRecordingScreen} />
     </Stack.Navigator>

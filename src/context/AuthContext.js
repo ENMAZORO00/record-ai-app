@@ -1,6 +1,6 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { authApi } from '../services/api';
+import { authApi, getAuthMe } from '../services/api';
 
 const TOKEN_KEY = '@notes_token';
 const USER_KEY = '@notes_user';
@@ -25,6 +25,15 @@ export function AuthProvider({ children }) {
       if (storedToken && storedUser) {
         setToken(storedToken);
         setUser(JSON.parse(storedUser));
+        try {
+          const { user: fresh } = await getAuthMe(storedToken);
+          if (fresh) {
+            setUser(fresh);
+            await AsyncStorage.setItem(USER_KEY, JSON.stringify(fresh));
+          }
+        } catch (_) {
+          // keep stored user on refresh failure
+        }
       }
     } catch (e) {
       // ignore
@@ -40,6 +49,11 @@ export function AuthProvider({ children }) {
     ]);
     setToken(authToken);
     setUser(userData);
+  };
+
+  const updateUser = async (userData) => {
+    setUser(userData);
+    await AsyncStorage.setItem(USER_KEY, JSON.stringify(userData));
   };
 
   const signOut = async () => {
@@ -59,7 +73,7 @@ export function AuthProvider({ children }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, signIn, signOut, isAuthenticated: !!token }}>
+    <AuthContext.Provider value={{ user, token, loading, signIn, signOut, updateUser, isAuthenticated: !!token }}>
       {children}
     </AuthContext.Provider>
   );

@@ -387,6 +387,31 @@ export default function HomeScreen() {
                 </View>
               </TouchableOpacity>
 
+              {/* Company / B2B section — only when user is in a company (register flow is on login page) */}
+              {user?.companyId ? (
+                <View style={styles.companySection}>
+                  <Text style={styles.chatHistoryTitle}>Company</Text>
+                  <TouchableOpacity
+                    style={styles.companyItem}
+                    onPress={() => { closeSidebar(); navigation.navigate('Team'); }}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons name="people-outline" size={20} color="#9810FA" />
+                    <Text style={styles.companyItemText}>Team</Text>
+                  </TouchableOpacity>
+                  {user?.companyRole === 'admin' && (
+                    <TouchableOpacity
+                      style={styles.companyItem}
+                      onPress={() => { closeSidebar(); navigation.navigate('InviteMembers'); }}
+                      activeOpacity={0.7}
+                    >
+                      <Ionicons name="person-add-outline" size={20} color="#9810FA" />
+                      <Text style={styles.companyItemText}>Invite members</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              ) : null}
+
               {/* Chat History section */}
                 <View style={styles.chatHistorySection}>
                 <Text style={styles.chatHistoryTitle}>Chat History</Text>
@@ -431,11 +456,16 @@ export default function HomeScreen() {
                 </ScrollView>
               </View>
 
-              {/* Footer: email + logout (ChatGPT-style) */}
+              {/* Footer: email + company + logout */}
               <View style={[styles.sidebarFooter, { paddingBottom: insets.bottom + 16 }]}>
                 <Text style={styles.sidebarFooterEmail} numberOfLines={1}>
                   {user?.email || 'No email'}
                 </Text>
+                {user?.companyName ? (
+                  <Text style={styles.sidebarCompanyName} numberOfLines={1}>
+                    {user.companyName} {user.companyRole === 'admin' ? '(Admin)' : ''}
+                  </Text>
+                ) : null}
                 <TouchableOpacity
                   style={styles.sidebarFooterLogout}
                   onPress={handleLogout}
@@ -605,6 +635,26 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 22,
     color: '#99A1AF',
+  },
+  companySection: {
+    marginBottom: 20,
+  },
+  companyItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 4,
+  },
+  companyItemText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#000',
+  },
+  sidebarCompanyName: {
+    fontSize: 12,
+    color: '#9ca3af',
+    marginBottom: 8,
   },
   chatHistorySection: {
     flex: 1,

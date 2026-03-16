@@ -3,13 +3,13 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import AuthLayout from '../components/AuthLayout';
 import OTPInput from '../components/OTPInput';
 import AuthButton from '../components/AuthButton';
-import { authApi } from '../services/api';
+import { authApi, registerCompany } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { authColors } from '../theme/authColors';
 
 export default function VerifyOTPScreen({ navigation, route }) {
-  const { signIn } = useAuth();
-  const { email, name, password } = route.params || {};
+  const { signIn, updateUser } = useAuth();
+  const { email, name, password, inviteToken, companyName } = route.params || {};
   const [otp, setOtp] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -31,6 +31,21 @@ export default function VerifyOTPScreen({ navigation, route }) {
     try {
       const data = await authApi.verifyOtp(email, code, name, password);
       await signIn(data.user, data.token);
+      if (inviteToken) {
+        navigation.reset({ index: 0, routes: [{ name: 'AcceptInvite', params: { inviteToken } }] });
+        return;
+      }
+      if (companyName && data.token) {
+        try {
+          const companyData = await registerCompany(data.token, companyName.trim());
+          if (companyData.user) {
+            updateUser(companyData.user);
+            await signIn(companyData.user, data.token);
+          }
+        } catch (e) {
+          console.warn('Company registration after verify:', e);
+        }
+      }
       navigation.reset({ index: 0, routes: [{ name: 'Home' }] });
     } catch (err) {
       setError(err.message || 'Invalid or expired code');
@@ -59,7 +74,7 @@ export default function VerifyOTPScreen({ navigation, route }) {
       onPress={() => navigation.goBack()}
       disabled={loading}
     >
-      <Text style={styles.backText}>← Back to sign up</Text>
+      <Text style={styles.backText}>{companyName ? '← Back' : '← Back to sign up'}</Text>
     </TouchableOpacity>
   );
 

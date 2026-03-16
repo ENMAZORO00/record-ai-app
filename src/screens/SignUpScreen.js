@@ -9,7 +9,8 @@ import { useAuth } from "../context/AuthContext";
 import { authColors } from "../theme/authColors";
 import { GOOGLE_WEB_CLIENT_ID } from "../constants/config";
 
-export default function SignUpScreen({ navigation }) {
+export default function SignUpScreen({ navigation, route }) {
+  const inviteToken = route?.params?.inviteToken;
   const { signIn } = useAuth();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -44,6 +45,7 @@ export default function SignUpScreen({ navigation }) {
         email: data.email,
         name: data.tempData.name,
         password: data.tempData.password,
+        ...(inviteToken ? { inviteToken } : {}),
       });
     } catch (err) {
       setError(err.message || "Failed to send OTP");
@@ -54,7 +56,11 @@ export default function SignUpScreen({ navigation }) {
 
   const handleGoogleSuccess = (user, token) => {
     signIn(user, token);
-    navigation.reset({ index: 0, routes: [{ name: "Home" }] });
+    if (inviteToken) {
+      navigation.reset({ index: 0, routes: [{ name: "AcceptInvite", params: { inviteToken } }] });
+    } else {
+      navigation.reset({ index: 0, routes: [{ name: "Home" }] });
+    }
   };
 
   const footer = (

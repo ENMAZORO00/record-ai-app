@@ -349,12 +349,13 @@ export async function getTranscript(token, id) {
 }
 
 /**
- * Upload recording file to backend. FormData with field "recording".
+ * Upload recording file to backend. FormData with field "recording", optional "meetingId".
  * @param {string} token - Auth token
  * @param {object} file - { uri, type?, name? } (native) or { blob, type?, name? } (web)
- * @returns {Promise<{ id, recordingUrl, status }>}
+ * @param {string} [meetingId] - Optional; links transcript to meeting for B2B
+ * @returns {Promise<{ id, recordingUrl, status, meetingId? }>}
  */
-export async function uploadRecording(token, file) {
+export async function uploadRecording(token, file, meetingId) {
   const formData = new FormData();
   if (file.blob) {
     formData.append('recording', file.blob, file.name || 'recording.webm');
@@ -365,16 +366,100 @@ export async function uploadRecording(token, file) {
       name: file.name || 'recording.m4a',
     });
   }
+  if (meetingId) formData.append('meetingId', meetingId);
   const res = await fetch(`${getBaseUrl()}/transcripts/upload`, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${token}`,
-      // Do not set Content-Type; let the client set multipart boundary
     },
     body: formData,
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data?.error || 'Upload failed');
+  return data;
+}
+
+/** POST /companies — register company (auth). Returns { company, user }. */
+export async function registerCompany(token, name) {
+  const res = await fetch(`${getBaseUrl()}/companies`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ name: (name || '').trim() }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data?.error || 'Failed to register company');
+  return data;
+}
+
+/** GET /companies/me — get current user's company (auth). */
+export async function getCompanyMe(token) {
+  const res = await fetch(`${getBaseUrl()}/companies/me`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok && res.status !== 404) throw new Error(data?.error || 'Failed to load company');
+  return data;
+}
+
+/** GET /companies/me/members — list company members (auth). */
+export async function getCompanyMembers(token) {
+  const res = await fetch(`${getBaseUrl()}/companies/me/members`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data?.error || 'Failed to load members');
+  return data;
+}
+
+/** POST /companies/invites — invite by email (admin). Body: { email }. */
+export async function inviteEmployee(token, email) {
+  const res = await fetch(`${getBaseUrl()}/companies/invites`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ email: (email || '').trim().toLowerCase() }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data?.error || 'Failed to send invite');
+  return data;
+}
+
+/** GET /companies/invites/:token — get invite details (no auth). */
+export async function getInviteByToken(token) {
+  const res = await fetch(`${getBaseUrl()}/companies/invites/${encodeURIComponent(token)}`);
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data?.error || 'Invalid or expired invite');
+  return data;
+}
+
+/** POST /companies/join — accept invite (auth). Body: { inviteToken }. */
+export async function joinCompany(token, inviteToken) {
+  const res = await fetch(`${getBaseUrl()}/companies/join`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ inviteToken: (inviteToken || '').trim() }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data?.error || 'Failed to join company');
+  return data;
+}
+
+/** POST /meetings — create meeting. Body: { participantUserIds: string[] }. */
+export async function createMeeting(token, participantUserIds) {
+  const res = await fetch(`${getBaseUrl()}/meetings`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ participantUserIds: participantUserIds || [] }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data?.error || 'Failed to create meeting');
+  return data;
+}
+
+/** GET /auth/me — current user with company (auth). */
+export async function getAuthMe(token) {
+  const res = await fetch(`${getBaseUrl()}/auth/me`, { headers: { Authorization: `Bearer ${token}` } });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data?.error || 'Failed to load user');
   return data;
 }
 

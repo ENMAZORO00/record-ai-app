@@ -9,16 +9,25 @@ import { useAuth } from '../context/AuthContext';
 import { authColors } from '../theme/authColors';
 import { GOOGLE_WEB_CLIENT_ID } from '../constants/config';
 
-export default function LoginScreen({ navigation }) {
+export default function LoginScreen({ navigation, route }) {
+  const inviteToken = route?.params?.inviteToken;
   const { signIn } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
+  const goAfterAuth = () => {
+    if (inviteToken) {
+      navigation.reset({ index: 0, routes: [{ name: 'AcceptInvite', params: { inviteToken } }] });
+    } else {
+      navigation.reset({ index: 0, routes: [{ name: 'Home' }] });
+    }
+  };
+
   const handleGoogleSuccess = (user, token) => {
     signIn(user, token);
-    navigation.reset({ index: 0, routes: [{ name: 'Home' }] });
+    goAfterAuth();
   };
 
   const handleLogin = async () => {
@@ -36,7 +45,7 @@ export default function LoginScreen({ navigation }) {
     try {
       const data = await authApi.login(tEmail, password);
       await signIn(data.user, data.token);
-      navigation.reset({ index: 0, routes: [{ name: 'Home' }] });
+      goAfterAuth();
     } catch (err) {
       setError(err.message || 'Invalid email or password');
     } finally {
@@ -93,10 +102,20 @@ export default function LoginScreen({ navigation }) {
 
       <View style={styles.footer}>
         <Text style={styles.footerText}>Don't have an account? </Text>
-        <TouchableOpacity onPress={() => navigation.replace('SignUp')}>
+        <TouchableOpacity onPress={() => navigation.replace('SignUp', inviteToken ? { inviteToken } : undefined)}>
           <Text style={styles.link}>Sign Up</Text>
         </TouchableOpacity>
       </View>
+
+      <TouchableOpacity
+        style={styles.registerCompanyWrap}
+        onPress={() => navigation.navigate('RegisterCompany', { fromLogin: true })}
+        disabled={loading}
+      >
+        <Text style={styles.registerCompanyText}>Register your company</Text>
+        <Text style={styles.registerCompanySubtext}>Create account as company admin and add your team</Text>
+      </TouchableOpacity>
+
       <Text style={styles.legal}>
         By continuing, you agree to our <Text style={styles.legalLink}>Terms</Text>
         {' '}and <Text style={styles.legalLink}>Privacy Policy</Text>.
@@ -122,6 +141,26 @@ const styles = StyleSheet.create({
   },
   footerText: { fontSize: 15, color: authColors.textSecondary },
   link: { fontSize: 15, fontWeight: '600', color: authColors.textPrimary },
+  registerCompanyWrap: {
+    marginTop: 20,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(88, 16, 250, 0.35)',
+    borderRadius: 12,
+    backgroundColor: 'rgba(88, 16, 250, 0.06)',
+  },
+  registerCompanyText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: authColors.primary,
+  },
+  registerCompanySubtext: {
+    fontSize: 12,
+    color: authColors.textMuted,
+    marginTop: 4,
+  },
   legal: {
     fontSize: 13,
     color: authColors.textMuted,

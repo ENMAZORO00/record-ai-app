@@ -48,10 +48,11 @@ const RecordingState = {
   PAUSED: 'paused',
 };
 
-export default function VoiceRecordingScreen() {
+export default function VoiceRecordingScreen({ route }) {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   const { token } = useAuth();
+  const meetingId = route?.params?.meetingId ?? null;
   const [recording, setRecording] = useState(null);
   const [recordingState, setRecordingState] = useState(RecordingState.IDLE);
   const [permissionGranted, setPermissionGranted] = useState(false);
@@ -172,7 +173,7 @@ export default function VoiceRecordingScreen() {
           const filePayload = blob
             ? { blob, type: rec.getMimeType?.() || 'audio/webm', name: `recording-${Date.now()}.webm` }
             : { uri, type: 'audio/m4a', name: `recording-${Date.now()}.m4a` };
-          await uploadRecording(token, filePayload);
+          await uploadRecording(token, filePayload, meetingId || undefined);
           navigation.navigate('Home', { switchToTranscript: true });
           Alert.alert(
             'Recording saved',
