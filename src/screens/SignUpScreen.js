@@ -1,5 +1,11 @@
 import React, { useState } from "react";
-import { View, Text, StyleSheet, TouchableOpacity, Platform } from "react-native";
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Platform,
+} from "react-native";
 import AuthLayout from "../components/AuthLayout";
 import AuthInput from "../components/AuthInput";
 import AuthButton from "../components/AuthButton";
@@ -57,7 +63,10 @@ export default function SignUpScreen({ navigation, route }) {
   const handleGoogleSuccess = (user, token) => {
     signIn(user, token);
     if (inviteToken) {
-      navigation.reset({ index: 0, routes: [{ name: "AcceptInvite", params: { inviteToken } }] });
+      navigation.reset({
+        index: 0,
+        routes: [{ name: "AcceptInvite", params: { inviteToken } }],
+      });
     } else {
       navigation.reset({ index: 0, routes: [{ name: "Home" }] });
     }
@@ -71,11 +80,6 @@ export default function SignUpScreen({ navigation, route }) {
           <Text style={styles.link}>Sign In</Text>
         </TouchableOpacity>
       </View>
-      <Text style={styles.legal}>
-        By continuing, you agree to our{" "}
-        <Text style={styles.legalLink}>Terms</Text> and{" "}
-        <Text style={styles.legalLink}>Privacy Policy</Text>.
-      </Text>
     </View>
   );
 
