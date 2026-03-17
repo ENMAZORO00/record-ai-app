@@ -65,7 +65,7 @@ export default function LoginScreen({ navigation, route }) {
   return (
     <AuthLayout
       title="Welcome Back"
-      titleFontWeight="400"
+      titleFontWeight="700"
       titleBottomMargin={32}
     >
       <AuthInput
