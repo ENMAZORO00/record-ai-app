@@ -16,6 +16,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../context/AuthContext';
 import { getChats, getChat, createChat, addChatMessage } from '../services/api';
 import { homeColors } from '../theme/homeColors';
@@ -285,7 +286,7 @@ export default function HomeScreen() {
       {/* Main content area */}
       <View style={styles.content}>{renderContent()}</View>
 
-      {/* Bottom navigation - rgba(255,255,255,0.13), borderRadius 20 */}
+      {/* Bottom navigation - pill buttons with gradient (selected) / circle (unselected) */}
       <View style={[styles.tabBar, { marginBottom: insets.bottom + 16 }]}>
         {TABS.map((tab) => {
           const isActive =
@@ -295,7 +296,7 @@ export default function HomeScreen() {
           return (
             <TouchableOpacity
               key={tab.id}
-              style={[styles.glassButton, isActive && styles.glassButtonActive]}
+              style={styles.tabPillOuter}
               onPress={() => {
                 if (tab.id === 'assistant') {
                   setAssistantResetKey((k) => k + 1);
@@ -305,17 +306,30 @@ export default function HomeScreen() {
               }}
               activeOpacity={0.85}
             >
-              <Ionicons
-                name={tab.icon}
-                size={24}
-                color={isActive ? '#9810FA' : '#99A1AF'}
-              />
-              <Text
-                style={[styles.glassLabel, isActive && styles.glassLabelActive]}
-                numberOfLines={1}
-              >
-                {tab.label}
-              </Text>
+              {isActive ? (
+                <>
+                  <LinearGradient
+                    colors={['#B366FF', '#7C3AED', '#5B21B6']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={styles.tabPillGradient}
+                  >
+                    <Ionicons name={tab.icon} size={24} color="#FFFFFF" />
+                  </LinearGradient>
+                  <Text style={styles.tabLabel} numberOfLines={1}>
+                    {tab.label}
+                  </Text>
+                </>
+              ) : (
+                <>
+                  <View style={styles.tabPillCircle}>
+                    <Ionicons name={tab.icon} size={24} color="#5B21B6" />
+                  </View>
+                  <Text style={styles.tabLabel} numberOfLines={1}>
+                    {tab.label}
+                  </Text>
+                </>
+              )}
             </TouchableOpacity>
           );
         })}
@@ -508,16 +522,18 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginHorizontal: 17,
-    paddingHorizontal: 11,
-    paddingVertical: 12,
-    gap: 23,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.13)',
+    paddingHorizontal: 10,
+    paddingVertical: 14,
+    gap: 12,
+    borderRadius: 28,
+    backgroundColor: 'rgba(248, 246, 255, 0.92)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(124, 58, 237, 0.25)',
     ...Platform.select({
       ios: {
-        shadowColor: '#000',
+        shadowColor: '#7C3AED',
         shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.08,
+        shadowOpacity: 0.06,
         shadowRadius: 16,
       },
       android: {
@@ -525,27 +541,48 @@ const styles = StyleSheet.create({
       },
     }),
   },
-  glassButton: {
+  tabPillOuter: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 4,
+    paddingVertical: 6,
+    paddingHorizontal: 6,
   },
-  glassButtonActive: {
-    backgroundColor: 'transparent',
-    borderRadius: 16,
+  tabPillGradient: {
+    width: '100%',
+    minHeight: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#7C3AED',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.2,
+        shadowRadius: 6,
+      },
+      android: {
+        elevation: 3,
+      },
+    }),
   },
-  glassLabel: {
-    fontSize: 10,
-    fontWeight: '400',
-    lineHeight: 15,
-    color: '#99A1AF',
-    marginTop: 4,
+  tabPillCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(233, 230, 250, 0.95)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: 'rgba(124, 58, 237, 0.2)',
   },
-  glassLabelActive: {
-    color: '#9810FA',
-    fontWeight: '400',
+  tabLabel: {
+    fontSize: 11,
+    fontWeight: '500',
+    lineHeight: 16,
+    color: '#1F2937',
+    marginTop: 6,
   },
   sidebarOverlay: {
     flex: 1,
