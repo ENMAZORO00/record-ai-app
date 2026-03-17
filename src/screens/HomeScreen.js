@@ -12,11 +12,9 @@ import {
   Dimensions,
   ScrollView,
 } from 'react-native';
-import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
-import Svg, { Path } from 'react-native-svg';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
 import { getChats, getChat, createChat, addChatMessage } from '../services/api';
@@ -365,25 +363,17 @@ export default function HomeScreen() {
                 </TouchableOpacity>
               </View>
 
-              {/* New Chat button - glass style */}
+              {/* New Chat button - primary CTA */}
               <TouchableOpacity
                 style={styles.newChatBtnWrap}
-                activeOpacity={0.8}
+                activeOpacity={0.85}
                 onPress={handleNewChat}
               >
-                <BlurView intensity={60} tint="light" style={StyleSheet.absoluteFill} />
-                <View style={styles.newChatGlassOverlay} pointerEvents="none" />
                 <View style={styles.newChatBtn}>
-                  <Svg width={20} height={20} viewBox="0 0 21 21" fill="none">
-                    <Path
-                      d="M14.612 2.98725L16.299 1.29925C16.6507 0.94757 17.1277 0.75 17.625 0.75C18.1223 0.75 18.5993 0.94757 18.951 1.29925C19.3027 1.65092 19.5002 2.1279 19.5002 2.62525C19.5002 3.12259 19.3027 3.59957 18.951 3.95125L8.332 14.5702C7.80332 15.0986 7.15137 15.487 6.435 15.7002L3.75 16.5002L4.55 13.8152C4.76328 13.0989 5.15163 12.4469 5.68 11.9182L14.612 2.98725ZM14.612 2.98725L17.25 5.62525M15.75 12.5002V17.2502C15.75 17.847 15.5129 18.4193 15.091 18.8412C14.669 19.2632 14.0967 19.5002 13.5 19.5002H3C2.40326 19.5002 1.83097 19.2632 1.40901 18.8412C0.987053 18.4193 0.75 17.847 0.75 17.2502V6.75025C0.75 6.15351 0.987053 5.58121 1.40901 5.15926C1.83097 4.7373 2.40326 4.50025 3 4.50025H7.75"
-                      stroke="#99A1AF"
-                      strokeWidth={1.5}
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </Svg>
-                  <Text style={styles.newChatText}>New Chat..</Text>
+                  <View style={styles.newChatIconWrap}>
+                    <Ionicons name="add" size={22} color="#fff" />
+                  </View>
+                  <Text style={styles.newChatText}>New Chat</Text>
                 </View>
               </TouchableOpacity>
 
@@ -416,14 +406,14 @@ export default function HomeScreen() {
                 <View style={styles.chatHistorySection}>
                 <Text style={styles.chatHistoryTitle}>Chat History</Text>
                 <View style={styles.searchBarWrap}>
-                  <BlurView intensity={60} tint="light" style={StyleSheet.absoluteFill} />
-                  <View style={styles.searchGlassOverlay} pointerEvents="none" />
                   <View style={styles.searchBar}>
-                    <Ionicons name="search" size={20} color="#99A1AF" />
+                    <View style={styles.searchIconWrap}>
+                      <Ionicons name="search" size={18} color="#6B7280" />
+                    </View>
                     <TextInput
                       style={styles.searchInput}
-                      placeholder="Search"
-                      placeholderTextColor="#99A1AF"
+                      placeholder="Search chats..."
+                      placeholderTextColor="#9CA3AF"
                       underlineColorAndroid="transparent"
                       value={searchQuery}
                       onChangeText={handleSearchChange}
@@ -564,7 +554,7 @@ const styles = StyleSheet.create({
   sidebar: {
     position: 'absolute',
     left: 0,
-    width: 242,
+    width: 290,
     flexDirection: 'column',
     backgroundColor: '#F5F6F8',
     paddingHorizontal: 16,
@@ -599,42 +589,44 @@ const styles = StyleSheet.create({
     color: '#000000',
   },
   newChatBtnWrap: {
-    borderRadius: 20,
     marginBottom: 20,
+    borderRadius: 12,
     overflow: 'hidden',
-    borderWidth: 1.5,
-    borderColor: 'rgba(153, 161, 175, 0.35)',
+    backgroundColor: homeColors.accent,
     ...Platform.select({
       ios: {
-        shadowColor: '#000',
+        shadowColor: '#9810FA',
         shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.1,
-        shadowRadius: 12,
+        shadowOpacity: 0.25,
+        shadowRadius: 8,
       },
       android: {
-        elevation: 6,
+        elevation: 4,
       },
     }),
-  },
-  newChatGlassOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(255, 255, 255, 0.4)',
-    borderRadius: 20,
   },
   newChatBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 16,
-    paddingHorizontal: 36,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
     gap: 10,
+  },
+  newChatIconWrap: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   newChatText: {
     fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
-    fontWeight: '500',
-    fontSize: 14,
-    lineHeight: 22,
-    color: '#99A1AF',
+    fontWeight: '600',
+    fontSize: 15,
+    letterSpacing: 0.2,
+    color: '#FFFFFF',
   },
   companySection: {
     marginBottom: 20,
@@ -669,40 +661,43 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   searchBarWrap: {
-    borderRadius: 20,
     marginBottom: 20,
-    overflow: 'hidden',
-    borderWidth: 1.5,
-    borderColor: 'rgba(153, 161, 175, 0.35)',
+    borderRadius: 12,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.06)',
     ...Platform.select({
       ios: {
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.1,
-        shadowRadius: 12,
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.04,
+        shadowRadius: 4,
       },
       android: {
-        elevation: 6,
+        elevation: 2,
       },
     }),
-  },
-  searchGlassOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(255, 255, 255, 0.4)',
-    borderRadius: 20,
   },
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 16,
-    paddingHorizontal: 20,
-    gap: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    gap: 12,
+  },
+  searchIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: '#F3F4F6',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   searchInput: {
     flex: 1,
-    fontSize: 14,
+    fontSize: 15,
     lineHeight: 22,
-    color: '#000',
+    color: '#111827',
     padding: 0,
     ...Platform.select({
       web: {
