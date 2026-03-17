@@ -35,12 +35,19 @@ export default function HomeScreen() {
   const { user, signOut, token } = useAuth();
   const insets = useSafeAreaInsets();
   const [activeTab, setActiveTab] = useState('assistant');
+  const [scrollPageIndex, setScrollPageIndex] = useState(0); // drives tab bar during swipe
   const [assistantResetKey, setAssistantResetKey] = useState(0);
   const [isAssistantMainView, setIsAssistantMainView] = useState(true);
   const [sidebarVisible, setSidebarVisible] = useState(false);
   const [sidebarMounted, setSidebarMounted] = useState(false);
   const [startInChatView, setStartInChatView] = useState(false);
   const slideAnim = useRef(new Animated.Value(-242)).current;
+  const scrollRef = useRef(null);
+  const SCREEN_WIDTH = Dimensions.get('window').width;
+  const scrollX = useRef(new Animated.Value(0)).current;
+  const oneVal = useRef(new Animated.Value(1)).current;
+  const assistantMainViewVal = useRef(new Animated.Value(1)).current;
+  const tapSwitchRef = useRef(false); // true when user tapped tab → instant switch, no scroll animation
 
   const [chatLoading, setChatLoading] = useState(false);
   const [chats, setChats] = useState([]); // { id, title, updatedAt } from API
@@ -103,6 +110,10 @@ export default function HomeScreen() {
       setCurrentMessages([]);
     }
   }, [currentChatId, token, fetchChat]);
+
+  useEffect(() => {
+    assistantMainViewVal.setValue(isAssistantMainView ? 1 : 0);
+  }, [isAssistantMainView, assistantMainViewVal]);
 
   const handleNewChat = () => {
     closeSidebar();
@@ -217,8 +228,23 @@ export default function HomeScreen() {
     navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
   };
 
-  const renderContent = () => {
-    switch (activeTab) {
+  // Sync scroll position and tab bar when activeTab changes
+  // Tap → instant switch (no animation). Swipe/programmatic → keep scroll in sync.
+  useEffect(() => {
+    const index = TABS.findIndex((t) => t.id === activeTab);
+    if (index < 0) return;
+    setScrollPageIndex(index);
+    if (!scrollRef.current) return;
+    const instant = tapSwitchRef.current;
+    scrollRef.current.scrollTo({ x: index * SCREEN_WIDTH, animated: !instant });
+    if (instant) {
+      scrollX.setValue(index * SCREEN_WIDTH);
+      tapSwitchRef.current = false;
+    }
+  }, [activeTab]);
+
+  const renderPanel = (tabId) => {
+    switch (tabId) {
       case 'assistant':
         return (
           <AssistantView
@@ -235,9 +261,9 @@ export default function HomeScreen() {
           />
         );
       case 'taskbar':
-        return <TaskBarView />;
+        return <TaskBarView key="taskbar" />;
       case 'transcript':
-        return <TranscriptView />;
+        return <TranscriptView key="transcript" />;
       default:
         return (
           <AssistantView
@@ -261,9 +287,9 @@ export default function HomeScreen() {
       <StatusBar style="dark" />
       <View style={[StyleSheet.absoluteFill, styles.bgFill]} pointerEvents="none" />
 
-      {/* Header: hamburger/back + title/avatar */}
+      {/* Header: follows swipe so it stays in sync with content and tab bar */}
       <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
-        {activeTab === 'assistant' ? (
+        {TABS[scrollPageIndex]?.id === 'assistant' ? (
           <TouchableOpacity
             style={styles.hamburgerBtn}
             onPress={() => setSidebarVisible(true)}
@@ -271,7 +297,7 @@ export default function HomeScreen() {
           >
             <Ionicons name="menu" size={26} color={homeColors.textPrimary} />
           </TouchableOpacity>
-        ) : activeTab === 'transcript' ? (
+        ) : TABS[scrollPageIndex]?.id === 'transcript' ? (
           <>
             <View style={styles.hamburgerBtn} />
             <Text style={styles.transcriptHeaderTitle}>Transcript</Text>
@@ -280,56 +306,100 @@ export default function HomeScreen() {
         ) : (
           <View style={styles.hamburgerBtn} />
         )}
-        {activeTab !== 'transcript' && <View style={styles.hamburgerBtn} />}
+        {TABS[scrollPageIndex]?.id !== 'transcript' && <View style={styles.hamburgerBtn} />}
       </View>
 
-      {/* Main content area */}
-      <View style={styles.content}>{renderContent()}</View>
+      {/* Main content area - swipeable between Assistant, Tasks, Transcript */}
+      <Animated.ScrollView
+        ref={scrollRef}
+        horizontal
+        pagingEnabled
+        showsHorizontalScrollIndicator={false}
+        decelerationRate="normal"
+        bounces={false}
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { x: scrollX } } }],
+          { useNativeDriver: false, listener: (e) => {
+            const index = Math.round(e.nativeEvent.contentOffset.x / SCREEN_WIDTH);
+            if (index >= 0 && index < TABS.length && index !== scrollPageIndex) {
+              setScrollPageIndex(index);
+            }
+          } }
+        )}
+        onMomentumScrollEnd={(e) => {
+          const index = Math.round(e.nativeEvent.contentOffset.x / SCREEN_WIDTH);
+          if (TABS[index]) {
+            setActiveTab(TABS[index].id);
+            setScrollPageIndex(index);
+          }
+        }}
+        scrollEventThrottle={8}
+        style={styles.content}
+        contentContainerStyle={styles.contentScrollContainer}
+      >
+        {TABS.map((tab) => (
+          <View key={tab.id} style={[styles.contentPage, { width: SCREEN_WIDTH }]}>
+            {renderPanel(tab.id)}
+          </View>
+        ))}
+      </Animated.ScrollView>
 
-      {/* Bottom navigation - pill buttons with gradient (selected) / circle (unselected) */}
+      {/* Bottom navigation - pill buttons follow swipe smoothly via interpolation */}
       <View style={[styles.tabBar, { marginBottom: insets.bottom + 16 }]}>
-        {TABS.map((tab) => {
-          const isActive =
-            tab.id === 'assistant'
-              ? activeTab === 'assistant' && isAssistantMainView
-              : activeTab === tab.id;
+        {TABS.map((tab, index) => {
+          const W = SCREEN_WIDTH;
+          const activeOpacityRaw = scrollX.interpolate({
+            inputRange: [(index - 1) * W, index * W, (index + 1) * W],
+            outputRange: [0, 1, 0],
+            extrapolate: 'clamp',
+          });
+          const activeOpacity =
+            index === 0
+              ? Animated.multiply(activeOpacityRaw, assistantMainViewVal)
+              : activeOpacityRaw;
+          const inactiveOpacity = Animated.subtract(oneVal, activeOpacity);
           return (
             <TouchableOpacity
               key={tab.id}
-              style={styles.tabPillOuter}
+              style={[styles.tabPillOuter, styles.tabPillOuterSmooth]}
               onPress={() => {
                 if (tab.id === 'assistant') {
                   setAssistantResetKey((k) => k + 1);
                   setCurrentChatId(null);
                 }
+                tapSwitchRef.current = true;
+                setScrollPageIndex(index);
                 setActiveTab(tab.id);
               }}
               activeOpacity={0.85}
             >
-              {isActive ? (
-                <>
-                  <LinearGradient
-                    colors={['#B366FF', '#7C3AED', '#5B21B6']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                    style={styles.tabPillGradient}
-                  >
-                    <Ionicons name={tab.icon} size={24} color="#FFFFFF" />
-                  </LinearGradient>
-                  <Text style={styles.tabLabel} numberOfLines={1}>
-                    {tab.label}
-                  </Text>
-                </>
-              ) : (
-                <>
-                  <View style={styles.tabPillCircle}>
-                    <Ionicons name={tab.icon} size={24} color="#5B21B6" />
-                  </View>
-                  <Text style={styles.tabLabel} numberOfLines={1}>
-                    {tab.label}
-                  </Text>
-                </>
-              )}
+              <Animated.View
+                style={[StyleSheet.absoluteFill, styles.tabPillInner, { opacity: inactiveOpacity }]}
+                pointerEvents="none"
+              >
+                <View style={styles.tabPillCircle}>
+                  <Ionicons name={tab.icon} size={24} color="#5B21B6" />
+                </View>
+                <Text style={styles.tabLabel} numberOfLines={1}>
+                  {tab.label}
+                </Text>
+              </Animated.View>
+              <Animated.View
+                style={[StyleSheet.absoluteFill, styles.tabPillInner, { opacity: activeOpacity }]}
+                pointerEvents="none"
+              >
+                <LinearGradient
+                  colors={['#B366FF', '#7C3AED', '#5B21B6']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.tabPillGradient}
+                >
+                  <Ionicons name={tab.icon} size={24} color="#FFFFFF" />
+                </LinearGradient>
+                <Text style={styles.tabLabel} numberOfLines={1}>
+                  {tab.label}
+                </Text>
+              </Animated.View>
             </TouchableOpacity>
           );
         })}
@@ -515,7 +585,14 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    ...Platform.select({ web: { minHeight: 0 } }), // Allows flex child to shrink/expand on web
+    ...Platform.select({ web: { minHeight: 0 } }),
+  },
+  contentScrollContainer: {
+    flexGrow: 1,
+  },
+  contentPage: {
+    flex: 1,
+    ...Platform.select({ web: { minHeight: 0 } }),
   },
   tabBar: {
     flexDirection: 'row',
@@ -547,6 +624,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 6,
     paddingHorizontal: 6,
+  },
+  tabPillOuterSmooth: {
+    minHeight: 56,
+  },
+  tabPillInner: {
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   tabPillGradient: {
     width: '100%',
