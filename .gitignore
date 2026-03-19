@@ -9,6 +9,9 @@ dist/
 *.orig.*
 *.tsbuildinfo
 
+# Play Store / EAS Submit (never commit keys)
+google-service-account.json
+
 # Env (keep .env.example)
 .env
 .env.local
