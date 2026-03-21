@@ -3,6 +3,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import * as Linking from 'expo-linking';
 import { StatusBar } from 'expo-status-bar';
 import { AuthProvider } from './src/context/AuthContext';
+import { ErrorBoundary } from './src/components/ErrorBoundary';
 import RootStack from './src/navigation/RootStack';
 
 function getInviteTokenFromUrl(url) {
@@ -52,11 +53,13 @@ export default function App() {
   }, []);
 
   return (
-    <AuthProvider>
-      <NavigationContainer ref={navigationRef} onReady={() => setNavReady(true)}>
-        <StatusBar style="light" />
-        <RootStack />
-      </NavigationContainer>
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        <NavigationContainer ref={navigationRef} onReady={() => setNavReady(true)}>
+          <StatusBar style="light" />
+          <RootStack />
+        </NavigationContainer>
+      </AuthProvider>
+    </ErrorBoundary>
   );
 }

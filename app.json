@@ -16,7 +16,11 @@
       "adaptiveIcon": {
         "foregroundImage": "./assets/logo.png",
         "backgroundColor": "#ffffff"
-      }
+      },
+      "permissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS"
+      ]
     },
     "plugins": [
       [
@@ -24,7 +28,22 @@
         {
           "microphonePermission": "Allow Shoten AI to access your microphone for recording conversations."
         }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "compileSdkVersion": 35,
+            "targetSdkVersion": 35
+          }
+        }
       ]
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "7dbea097-991e-4fc7-9dc9-aa6974013c6f"
+      }
+    },
+    "owner": "enmazoro"
   }
 }

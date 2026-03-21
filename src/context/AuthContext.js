@@ -24,15 +24,23 @@ export function AuthProvider({ children }) {
       ]);
       if (storedToken && storedUser) {
         setToken(storedToken);
-        setUser(JSON.parse(storedUser));
+        let parsedUser = null;
         try {
-          const { user: fresh } = await getAuthMe(storedToken);
-          if (fresh) {
-            setUser(fresh);
-            await AsyncStorage.setItem(USER_KEY, JSON.stringify(fresh));
-          }
+          parsedUser = JSON.parse(storedUser);
+          if (parsedUser && typeof parsedUser === 'object') setUser(parsedUser);
         } catch (_) {
-          // keep stored user on refresh failure
+          await AsyncStorage.removeItem(USER_KEY);
+        }
+        if (parsedUser) {
+          try {
+            const { user: fresh } = await getAuthMe(storedToken);
+            if (fresh) {
+              setUser(fresh);
+              await AsyncStorage.setItem(USER_KEY, JSON.stringify(fresh));
+            }
+          } catch (_) {
+            // keep stored user on refresh failure
+          }
         }
       }
     } catch (e) {
