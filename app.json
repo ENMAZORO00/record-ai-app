@@ -6,7 +6,7 @@
     "scheme": "notes",
     "icon": "./assets/icon-new.png",
     "splash": {
-      "image": "./assets/logo.png",
+      "image": "./assets/icon-new.png",
       "backgroundColor": "#ffffff",
       "resizeMode": "contain"
     },

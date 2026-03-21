@@ -129,18 +129,15 @@ export default function SignUpScreen({ navigation, route }) {
           title="Create Account"
           onPress={handleSignUp}
           loading={loading}
-          icon="person-add-outline"
+          primaryStyle="solid"
         />
 
         {GOOGLE_WEB_CLIENT_ID ? (
           <GoogleAuthSafe>
-            <View style={styles.orSection}>
-              <Text style={styles.orText}>OR</Text>
-              <GoogleLoginButton
-                onSuccess={handleGoogleSuccess}
-                onError={setError}
-              />
-            </View>
+            <GoogleLoginButton
+              onSuccess={handleGoogleSuccess}
+              onError={setError}
+            />
           </GoogleAuthSafe>
         ) : null}
 
@@ -153,16 +150,6 @@ export default function SignUpScreen({ navigation, route }) {
 const styles = StyleSheet.create({
   form: {
     gap: 22,
-  },
-  orSection: {
-    marginTop: 8,
-  },
-  orText: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: authColors.textPrimary,
-    textAlign: "center",
-    marginBottom: 16,
   },
   errorText: {
     fontSize: 14,

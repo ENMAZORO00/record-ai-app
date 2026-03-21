@@ -12,9 +12,8 @@ import {
   Pressable,
   TextInput,
   Platform,
-  Dimensions,
+  useWindowDimensions,
 } from 'react-native';
-import { BlurView } from 'expo-blur';
 import { Audio } from 'expo-av';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
@@ -64,18 +63,20 @@ function TranscriptCard({ item, onPress }) {
     <TouchableOpacity style={styles.card} onPress={() => onPress(item)} activeOpacity={0.85}>
       <View style={styles.cardInner}>
         <View style={styles.cardHeaderRow}>
-          <Text style={styles.cardSnippet} numberOfLines={3}>
+          <Text style={styles.cardSnippet} numberOfLines={3} ellipsizeMode="tail">
             {snippet}
           </Text>
           <View style={[styles.ownerBadge, badgeStyle]}>
-            <Text style={[styles.ownerBadgeText, !isOwner && styles.sharedBadgeText, isMeeting && styles.meetingBadgeText]}>{badgeLabel}</Text>
+            <Text style={[styles.ownerBadgeText, !isOwner && styles.sharedBadgeText, isMeeting && styles.meetingBadgeText]} numberOfLines={1}>
+              {badgeLabel}
+            </Text>
           </View>
         </View>
         <View style={styles.cardMeta}>
           <View style={styles.cardMetaLeft}>
             <View style={styles.metaItem}>
               <Ionicons name="calendar" size={16} color="#6B7280" />
-              <Text style={styles.metaText}>{dateStr}</Text>
+              <Text style={styles.metaText} numberOfLines={1} ellipsizeMode="tail">{dateStr}</Text>
             </View>
             <View style={styles.metaItem}>
               <Ionicons name="time" size={16} color="#6B7280" />
@@ -511,6 +512,7 @@ const SEARCH_DEBOUNCE_MS = 500;
 
 export default function TranscriptView() {
   const { token, user } = useAuth();
+  useWindowDimensions(); // re-render on resize so layout adapts
   const [list, setList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -598,14 +600,14 @@ export default function TranscriptView() {
       {/* Search bar - matches sidebar in Assistant screen */}
       <View style={styles.searchWrapper}>
         <View style={styles.searchBarWrap}>
-          {Platform.OS !== 'web' && <BlurView intensity={60} tint="light" style={StyleSheet.absoluteFill} />}
-          <View style={[styles.searchGlassOverlay, Platform.OS === 'web' && styles.searchGlassOverlayWeb]} pointerEvents="none" />
           <View style={styles.searchBar}>
-            <Ionicons name="search" size={20} color="#99A1AF" />
+            <View style={styles.searchIconWrap}>
+              <Ionicons name="search" size={18} color="#6B7280" />
+            </View>
             <TextInput
               style={styles.searchInput}
               placeholder="Search or describe what you're looking for"
-              placeholderTextColor="#99A1AF"
+              placeholderTextColor="#9CA3AF"
               value={searchQuery}
               onChangeText={setSearchQuery}
               returnKeyType="search"
@@ -665,8 +667,6 @@ export default function TranscriptView() {
   );
 }
 
-const { width } = Dimensions.get('window');
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -682,42 +682,42 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   searchBarWrap: {
-    borderRadius: 20,
-    overflow: 'hidden',
-    borderWidth: 1.5,
-    borderColor: 'rgba(153, 161, 175, 0.35)',
+    borderRadius: 12,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.06)',
     ...Platform.select({
       ios: {
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.1,
-        shadowRadius: 12,
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.04,
+        shadowRadius: 4,
       },
       android: {
-        elevation: 6,
+        elevation: 2,
       },
     }),
-  },
-  searchGlassOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(255, 255, 255, 0.4)',
-    borderRadius: 20,
-  },
-  searchGlassOverlayWeb: {
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
   },
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 16,
-    paddingHorizontal: 20,
-    gap: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    gap: 12,
+  },
+  searchIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: '#F3F4F6',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   searchInput: {
     flex: 1,
-    fontSize: 14,
+    fontSize: 15,
     lineHeight: 22,
-    color: '#000',
+    color: '#111827',
     padding: 0,
     ...Platform.select({
       web: { outlineStyle: 'none', outlineWidth: 0, outlineColor: 'transparent' },
@@ -763,12 +763,14 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     justifyContent: 'space-between',
     gap: 8,
+    minWidth: 0,
   },
   ownerBadge: {
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 8,
     backgroundColor: 'rgba(139, 92, 246, 0.15)',
+    flexShrink: 0,
   },
   sharedBadge: {
     backgroundColor: 'rgba(99, 102, 241, 0.15)',
@@ -788,6 +790,8 @@ const styles = StyleSheet.create({
     color: homeColors.accent,
   },
   cardSnippet: {
+    flex: 1,
+    minWidth: 0,
     fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
     fontWeight: '500',
     fontSize: 14,
@@ -805,13 +809,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     width: '100%',
+    minWidth: 0,
   },
   metaItem: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 2,
+    flexShrink: 1,
+    minWidth: 0,
   },
   metaText: {
+    flexShrink: 1,
+    minWidth: 0,
     fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
     fontWeight: '400',
     fontSize: 13,
@@ -822,6 +831,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 2,
+    flexShrink: 0,
   },
   viewTranscriptText: {
     fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',

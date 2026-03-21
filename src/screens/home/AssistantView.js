@@ -396,34 +396,36 @@ export default function AssistantView({
             </>
           )}
 
-          {/* Message input bar - design spec */}
+          {/* Message input bar - matches sidebar UI */}
           <View style={styles.messageWrapper}>
-            <View style={styles.messageBar}>
-              <TextInput
-                style={styles.messageInput}
-                placeholder="Type a message"
-                placeholderTextColor={homeColors.textMuted}
-                value={searchQuery}
-                onChangeText={setSearchQuery}
-                onSubmitEditing={handleSendMessage}
-                returnKeyType="send"
-                multiline
-                maxLength={4000}
-                editable={recordingState === RecordingState.IDLE}
-                underlineColorAndroid="transparent"
-              />
-              <TouchableOpacity
-                style={[styles.sendBtn, searchQuery.trim().length > 0 && !sending && styles.sendBtnActive]}
-                disabled={searchQuery.trim().length === 0 || sending}
-                onPress={handleSendMessage}
-                activeOpacity={0.7}
-              >
-                <Ionicons
-                  name="paper-plane-outline"
-                  size={24}
-                  color={searchQuery.trim().length > 0 ? '#fff' : '#000000'}
+            <View style={styles.searchBarWrap}>
+              <View style={styles.searchBar}>
+                <TextInput
+                  style={styles.searchInput}
+                  placeholder="Type a message"
+                  placeholderTextColor="#9CA3AF"
+                  value={searchQuery}
+                  onChangeText={setSearchQuery}
+                  onSubmitEditing={handleSendMessage}
+                  returnKeyType="send"
+                  multiline
+                  maxLength={4000}
+                  editable={recordingState === RecordingState.IDLE}
+                  underlineColorAndroid="transparent"
                 />
-              </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.sendBtn, searchQuery.trim().length > 0 && !sending && styles.sendBtnActive]}
+                  disabled={searchQuery.trim().length === 0 || sending}
+                  onPress={handleSendMessage}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons
+                    name="paper-plane-outline"
+                    size={20}
+                    color={searchQuery.trim().length > 0 ? '#fff' : '#000000'}
+                  />
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
         </View>
@@ -545,59 +547,53 @@ const styles = StyleSheet.create({
     width: '100%',
     marginTop: 24,
   },
-  messageBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    minHeight: 74,
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-    paddingRight: 8,
-    gap: 9,
-    borderRadius: 20,
-    backgroundColor: 'rgba(0, 0, 0, 0.004)',
+  searchBarWrap: {
+    borderRadius: 12,
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: 'rgba(153, 161, 175, 0.29)',
+    borderColor: 'rgba(0, 0, 0, 0.06)',
     ...Platform.select({
       ios: {
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.06,
-        shadowRadius: 8,
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.04,
+        shadowRadius: 4,
       },
       android: {
-        elevation: 3,
+        elevation: 2,
       },
     }),
   },
-  messageInput: {
+  searchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    gap: 12,
+  },
+  searchInput: {
     flex: 1,
-    fontSize: 16,
-    fontWeight: '500',
+    fontSize: 15,
     lineHeight: 22,
-    color: '#000000',
-    paddingVertical: 8,
-    paddingHorizontal: 4,
+    color: '#111827',
+    padding: 0,
     maxHeight: 120,
-    textAlignVertical: 'center',
-    borderWidth: 0,
     ...Platform.select({
       web: { outlineStyle: 'none', outlineWidth: 0, outlineColor: 'transparent' },
+      android: { textAlignVertical: 'center' },
       default: {},
     }),
   },
   sendBtn: {
-    width: 58,
-    height: 54,
-    borderRadius: 100,
-    backgroundColor: 'rgba(0, 0, 0, 0.004)',
-    borderWidth: 1,
-    borderColor: '#E0E3E7',
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: '#F3F4F6',
     alignItems: 'center',
     justifyContent: 'center',
   },
   sendBtnActive: {
     backgroundColor: homeColors.accent,
-    borderColor: homeColors.accent,
   },
   startRecordingBtn: {
     width: '100%',
