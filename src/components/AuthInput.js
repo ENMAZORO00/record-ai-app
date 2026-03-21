@@ -42,6 +42,7 @@ export default function AuthInput({
               styles.input,
               leftIcon && styles.inputWithLeftIcon,
               (isPassword || leftIcon) && styles.inputWithRightIcon,
+              Platform.OS === 'android' && styles.inputAndroid,
             ]}
             value={value}
             onChangeText={onChangeText}
@@ -51,6 +52,7 @@ export default function AuthInput({
             keyboardType={keyboardType}
             autoCapitalize={autoCapitalize}
             editable={editable}
+            underlineColorAndroid="transparent"
           />
         </View>
         {isPassword ? (
@@ -121,6 +123,9 @@ const styles = StyleSheet.create({
     color: authColors.textPrimary,
     paddingVertical: 0,
     ...(Platform.OS === 'web' && { outlineStyle: 'none' }),
+  },
+  inputAndroid: {
+    minHeight: 24,
   },
   inputWithLeftIcon: {
     paddingLeft: 0,

@@ -35,13 +35,17 @@ export default function AuthLayout({
   const wrapperProps = compact
     ? {
         contentContainerStyle: [styles.scroll, styles.scrollCompact],
-        keyboardShouldPersistTaps: 'handled',
+        keyboardShouldPersistTaps: 'always',
+        keyboardDismissMode: 'on-drag',
         showsVerticalScrollIndicator: false,
+        ...(Platform.OS === 'android' && { nestedScrollEnabled: true }),
       }
     : {
         contentContainerStyle: styles.scroll,
-        keyboardShouldPersistTaps: 'handled',
+        keyboardShouldPersistTaps: 'always',
+        keyboardDismissMode: 'on-drag',
         showsVerticalScrollIndicator: false,
+        ...(Platform.OS === 'android' && { nestedScrollEnabled: true }),
       };
 
   return (
