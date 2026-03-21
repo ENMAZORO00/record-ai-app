@@ -24,6 +24,12 @@
     },
     "plugins": [
       [
+        "@react-native-google-signin/google-signin",
+        {
+          "iosUrlScheme": "com.googleusercontent.apps.444303896308-u28vp0pnad7s2dl9e4hadjis3re8qs29"
+        }
+      ],
+      [
         "expo-av",
         {
           "microphonePermission": "Allow Shoten AI to access your microphone for recording conversations."

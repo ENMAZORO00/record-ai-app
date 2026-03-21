@@ -31,9 +31,13 @@ export default function AuthLayout({
   onClose,
   compact = false,
 }) {
-  const Wrapper = compact ? View : ScrollView;
+  const Wrapper = ScrollView;
   const wrapperProps = compact
-    ? { style: [styles.scroll, styles.scrollCompact] }
+    ? {
+        contentContainerStyle: [styles.scroll, styles.scrollCompact],
+        keyboardShouldPersistTaps: 'handled',
+        showsVerticalScrollIndicator: false,
+      }
     : {
         contentContainerStyle: styles.scroll,
         keyboardShouldPersistTaps: 'handled',
@@ -41,7 +45,7 @@ export default function AuthLayout({
       };
 
   return (
-    <View style={[styles.container, styles.bg, compact && styles.containerNoScroll]}>
+    <View style={[styles.container, styles.bg]}>
       <StatusBar style="dark" />
       <SafeAreaView style={styles.safe}>
         <KeyboardAvoidingView
@@ -125,7 +129,6 @@ export default function AuthLayout({
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  containerNoScroll: { overflow: 'hidden' },
   bg: { backgroundColor: authColors.bg },
   safe: { flex: 1 },
   keyboard: { flex: 1 },
