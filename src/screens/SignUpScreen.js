@@ -4,12 +4,12 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  Platform,
 } from "react-native";
 import AuthLayout from "../components/AuthLayout";
 import AuthInput from "../components/AuthInput";
 import AuthButton from "../components/AuthButton";
 import GoogleLoginButton from "../components/GoogleLoginButton";
+import GoogleAuthSafe from "../components/GoogleAuthSafe";
 import { authApi } from "../services/api";
 import { useAuth } from "../context/AuthContext";
 import { authColors } from "../theme/authColors";
@@ -132,14 +132,16 @@ export default function SignUpScreen({ navigation, route }) {
           icon="person-add-outline"
         />
 
-        {Platform.OS === "web" && GOOGLE_WEB_CLIENT_ID ? (
-          <View style={styles.orSection}>
-            <Text style={styles.orText}>OR</Text>
-            <GoogleLoginButton
-              onSuccess={handleGoogleSuccess}
-              onError={setError}
-            />
-          </View>
+        {GOOGLE_WEB_CLIENT_ID ? (
+          <GoogleAuthSafe>
+            <View style={styles.orSection}>
+              <Text style={styles.orText}>OR</Text>
+              <GoogleLoginButton
+                onSuccess={handleGoogleSuccess}
+                onError={setError}
+              />
+            </View>
+          </GoogleAuthSafe>
         ) : null}
 
         {footer}

@@ -14,12 +14,19 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://recordai-a0fdd6gne9fybte8.southindia-01.azurewebsites.net"
+        "EXPO_PUBLIC_API_URL": "https://recordai-a0fdd6gne9fybte8.southindia-01.azurewebsites.net",
+        "EXPO_PUBLIC_GOOGLE_CLIENT_ID": "444303896308-u28vp0pnad7s2dl9e4hadjis3re8qs29.apps.googleusercontent.com",
+        "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID": "444303896308-aqf998903fj5vi9glrhklm8bnoadv4ad.apps.googleusercontent.com"
       }
     },
     "production": {
       "android": {
         "buildType": "app-bundle"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://recordai-a0fdd6gne9fybte8.southindia-01.azurewebsites.net",
+        "EXPO_PUBLIC_GOOGLE_CLIENT_ID": "444303896308-u28vp0pnad7s2dl9e4hadjis3re8qs29.apps.googleusercontent.com",
+        "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID": "444303896308-aqf998903fj5vi9glrhklm8bnoadv4ad.apps.googleusercontent.com"
       }
     }
   },

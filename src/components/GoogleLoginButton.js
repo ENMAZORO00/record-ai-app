@@ -5,7 +5,8 @@ import * as WebBrowser from 'expo-web-browser';
 import * as Google from 'expo-auth-session/providers/google';
 import { authApi } from '../services/api';
 import { authColors } from '../theme/authColors';
-import { GOOGLE_WEB_CLIENT_ID } from '../constants/config';
+import { GOOGLE_WEB_CLIENT_ID, GOOGLE_ANDROID_CLIENT_ID } from '../constants/config';
+import { Platform } from 'react-native';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -14,6 +15,9 @@ export default function GoogleLoginButton({ onSuccess, onError }) {
 
   const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
     webClientId: GOOGLE_WEB_CLIENT_ID,
+    ...(Platform.OS === 'android' && GOOGLE_ANDROID_CLIENT_ID
+      ? { androidClientId: GOOGLE_ANDROID_CLIENT_ID }
+      : {}),
   });
 
   useEffect(() => {

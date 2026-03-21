@@ -23,11 +23,15 @@ export class ErrorBoundary extends React.Component {
 
   render() {
     if (this.state.hasError) {
+      const errMsg = this.state.error?.message || String(this.state.error || 'Unknown error');
       return (
         <View style={styles.container}>
           <Text style={styles.title}>Something went wrong</Text>
           <Text style={styles.message}>
             The app encountered an error. Try closing and reopening, or reinstalling.
+          </Text>
+          <Text style={styles.errorDetail} selectable>
+            {errMsg}
           </Text>
           <Pressable style={styles.button} onPress={this.handleRetry}>
             <Text style={styles.buttonText}>Try again</Text>
@@ -57,8 +61,16 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: '#525252',
     textAlign: 'center',
-    marginBottom: 24,
+    marginBottom: 12,
     lineHeight: 22,
+  },
+  errorDetail: {
+    fontSize: 12,
+    color: '#737373',
+    textAlign: 'center',
+    marginBottom: 24,
+    paddingHorizontal: 16,
+    fontFamily: 'monospace',
   },
   button: {
     backgroundColor: '#4f46e5',
