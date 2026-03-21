@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as Linking from 'expo-linking';
 import { StatusBar } from 'expo-status-bar';
 import { AuthProvider } from './src/context/AuthContext';
@@ -54,12 +55,14 @@ export default function App() {
 
   return (
     <ErrorBoundary>
-      <AuthProvider>
-        <NavigationContainer ref={navigationRef} onReady={() => setNavReady(true)}>
-          <StatusBar style="light" />
-          <RootStack />
-        </NavigationContainer>
-      </AuthProvider>
+      <SafeAreaProvider>
+        <AuthProvider>
+          <NavigationContainer ref={navigationRef} onReady={() => setNavReady(true)}>
+            <StatusBar style="light" />
+            <RootStack />
+          </NavigationContainer>
+        </AuthProvider>
+      </SafeAreaProvider>
     </ErrorBoundary>
   );
 }
