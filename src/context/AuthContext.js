@@ -1,4 +1,5 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
+import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { authApi, getAuthMe } from '../services/api';
 
@@ -71,6 +72,14 @@ export function AuthProvider({ children }) {
       }
     } catch (e) {
       // Still sign out locally if API fails (expired token, network error)
+    }
+    if (Platform.OS !== 'web') {
+      try {
+        const { GoogleSignin } = require('@react-native-google-signin/google-signin');
+        await GoogleSignin.signOut();
+      } catch (_) {
+        // ignore — e.g. never used Google on this device
+      }
     }
     await Promise.all([
       AsyncStorage.removeItem(TOKEN_KEY),
