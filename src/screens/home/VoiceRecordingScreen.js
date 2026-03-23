@@ -23,7 +23,6 @@ import {
 } from '../../services/audioRecorder';
 import { uploadRecording } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
-import { homeColors } from '../../theme/homeColors';
 import Svg, { Path } from 'react-native-svg';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -198,22 +197,54 @@ export default function VoiceRecordingScreen({ route }) {
     }
   }, [recording, token, navigation]);
 
-  const cancelRecording = useCallback(async () => {
-    if (recording) {
+  /** Stops and clears the current session; stay on this screen (mic-only / “start” again). */
+  const discardRecordingAndReset = useCallback(async () => {
+    const rec = recordingRef.current;
+    if (rec) {
       try {
         if (durationRef.current) {
           clearInterval(durationRef.current);
           durationRef.current = null;
         }
-        await recording.stopAndUnloadAsync();
+        await rec.stopAndUnloadAsync();
       } catch (e) {
         console.warn('Cancel recording error:', e);
       }
       setRecording(null);
       setRecordingState(RecordingState.IDLE);
+      setRecordingDuration(0);
     }
+  }, []);
+
+  const discardRecordingAndExit = useCallback(async () => {
+    await discardRecordingAndReset();
     navigation.goBack();
-  }, [recording, navigation]);
+  }, [discardRecordingAndReset, navigation]);
+
+  /** Header back: leave screen; confirm discard if a recording exists. */
+  const handleCancelPress = useCallback(() => {
+    if (uploading) return;
+    if (recordingRef.current) {
+      Alert.alert(
+        'Discard recording?',
+        'Your recording will not be saved.',
+        [
+          { text: 'Keep', style: 'cancel' },
+          { text: 'Discard', style: 'destructive', onPress: () => void discardRecordingAndExit() },
+        ]
+      );
+    } else {
+      navigation.goBack();
+    }
+  }, [uploading, navigation, discardRecordingAndExit]);
+
+  /** Bottom Cancel: discard and reset to 0; stay here with start (mic) only. */
+  const handleBottomCancelPress = useCallback(() => {
+    if (uploading) return;
+    if (recordingRef.current) {
+      void discardRecordingAndReset();
+    }
+  }, [uploading, discardRecordingAndReset]);
 
   // Central orb animation: breathing pulse that responds to recording state
   useEffect(() => {
@@ -317,6 +348,14 @@ export default function VoiceRecordingScreen({ route }) {
     return `${m.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}`;
   };
 
+  const sideBtnSize = 72;
+  /** Cancel + Save only after recording has started (recording or paused). */
+  const showSideControls = hasRecording;
+  const micWrapSizeIdle = Math.min(156, SCREEN_WIDTH - 48);
+  const micWrapSize = showSideControls ? sideBtnSize : micWrapSizeIdle;
+  const micDiameter = showSideControls ? sideBtnSize : Math.round(76 * (micWrapSizeIdle / 156));
+  const idleRingScale = micWrapSizeIdle / 156;
+
   const instructionText =
     isIdle ? "Tap the mic to start recording" : isRecording ? "Go ahead I'm listening" : "Paused — tap mic to resume";
   const statusTitle =
@@ -324,11 +363,11 @@ export default function VoiceRecordingScreen({ route }) {
   const statusSubtitle =
     uploading
       ? 'Please wait'
-      : isIdle
-        ? 'Tap the center button to start. Use the stop button to end and save.'
+        : isIdle
+        ? 'Tap the mic to start. After you begin, you can pause, save, or cancel.'
         : isRecording
           ? "I'm capturing your conversation, organizing key notes, and saving the transcript live."
-          : 'Tap the mic again to continue recording.';
+          : 'Tap the mic to resume, or Cancel to discard without saving.';
 
   return (
     <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
@@ -338,7 +377,7 @@ export default function VoiceRecordingScreen({ route }) {
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.backBtn}
-          onPress={cancelRecording}
+          onPress={handleCancelPress}
           activeOpacity={0.7}
           disabled={uploading}
         >
@@ -420,56 +459,125 @@ export default function VoiceRecordingScreen({ route }) {
           <Text style={styles.statusSubtitle}>{statusSubtitle}</Text>
         </View>
 
-        {/* Bottom controls — recording style */}
-        <View style={[styles.controls, { bottom: insets.bottom + 100 }]}>
-          <TouchableOpacity
-            style={[styles.micBtnWrap, (isRecording || isPaused) && styles.micBtnWrapActive]}
-            onPress={handleMicPress}
-            activeOpacity={0.85}
-            disabled={uploading}
-          >
-            {uploading ? (
-              <View style={styles.micBtn}>
-                <ActivityIndicator size="small" color="#FFFFFF" />
+        {/* Bottom controls — mic only until recording starts; then Cancel | Mic | Save (pause / resume on mic) */}
+        <View
+          style={[
+            styles.controls,
+            showSideControls ? null : styles.controlsMicOnlyRow,
+            { bottom: insets.bottom + 88 },
+          ]}
+        >
+          {showSideControls ? (
+            <>
+              <View style={styles.controlsCol}>
+                <View style={[styles.controlsButtonSlot, { height: sideBtnSize }]}>
+                  <TouchableOpacity
+                    style={[styles.sideActionBtn, uploading && styles.sideActionBtnDisabled]}
+                    onPress={handleBottomCancelPress}
+                    activeOpacity={0.8}
+                    disabled={uploading}
+                  >
+                    <View style={[styles.sideBtnInner, styles.cancelBtnInnerShadow]}>
+                      <LinearGradient
+                        colors={['#FEE2E2', '#FECACA']}
+                        start={{ x: 0.5, y: 0 }}
+                        end={{ x: 0.5, y: 1 }}
+                        style={[styles.sideBtnGradient, { width: sideBtnSize, height: sideBtnSize, borderRadius: 14 }]}
+                      >
+                        <Ionicons name="close" size={30} color="#B91C1C" />
+                      </LinearGradient>
+                    </View>
+                  </TouchableOpacity>
+                </View>
+                <Text style={styles.controlsActionLabel}>Cancel</Text>
               </View>
-            ) : (
-              <>
-                {(isRecording || isPaused) && (
-                  <>
-                    <View style={styles.micRing3} />
-                    <View style={styles.micRing2} />
-                    <View style={styles.micRing1} />
-                  </>
-                )}
-                <LinearGradient
-                  colors={isRecording ? ['#E53935', '#EF5350'] : ['#035BFA', '#4084FF', '#658FDB']}
-                  start={{ x: 0.5, y: 0 }}
-                  end={{ x: 0.5, y: 1 }}
-                  style={styles.micBtn}
-                >
-                  {isRecording ? (
-                    <Ionicons name="pause" size={32} color="#FFFFFF" />
-                  ) : isPaused ? (
-                    <Ionicons name="play" size={32} color="#FFFFFF" />
-                  ) : (
-                    <Ionicons name="mic" size={34} color="#FFFFFF" />
-                  )}
-                </LinearGradient>
-              </>
-            )}
-          </TouchableOpacity>
 
-          <TouchableOpacity
-            style={[styles.stopBtn, !hasRecording && styles.stopBtnDisabled]}
-            onPress={hasRecording ? stopAndSave : undefined}
-            activeOpacity={0.8}
-            disabled={uploading || !hasRecording}
-          >
-            <View style={[styles.stopBtnInner, hasRecording && styles.stopBtnInnerActive]}>
-              <Ionicons name="stop" size={28} color={hasRecording ? '#FFFFFF' : '#9E9E9E'} />
+              <View style={[styles.controlsCol, styles.controlsColCenter]}>
+                <View style={[styles.controlsButtonSlot, { height: sideBtnSize }]}>
+                  <TouchableOpacity
+                    style={[styles.micBtnWrap, { width: micWrapSize, height: micWrapSize }, (isRecording || isPaused) && styles.micBtnWrapActive]}
+                    onPress={handleMicPress}
+                    activeOpacity={0.85}
+                    disabled={uploading}
+                  >
+                    {uploading ? (
+                      <View style={[styles.micBtn, { width: micDiameter, height: micDiameter, borderRadius: micDiameter / 2 }]}>
+                        <ActivityIndicator size="small" color="#FFFFFF" />
+                      </View>
+                    ) : (
+                      <LinearGradient
+                        colors={isRecording ? ['#E53935', '#EF5350'] : ['#035BFA', '#4084FF', '#658FDB']}
+                        start={{ x: 0.5, y: 0 }}
+                        end={{ x: 0.5, y: 1 }}
+                        style={[
+                          styles.micBtn,
+                          { width: micDiameter, height: micDiameter, borderRadius: micDiameter / 2 },
+                        ]}
+                      >
+                        {isRecording ? (
+                          <Ionicons name="pause" size={28} color="#FFFFFF" />
+                        ) : (
+                          <Ionicons name="play" size={28} color="#FFFFFF" />
+                        )}
+                      </LinearGradient>
+                    )}
+                  </TouchableOpacity>
+                </View>
+                <View style={styles.controlsLabelSpacer} />
+              </View>
+
+              <View style={styles.controlsCol}>
+                <View style={[styles.controlsButtonSlot, { height: sideBtnSize }]}>
+                  <TouchableOpacity
+                    style={[styles.sideActionBtn, uploading && styles.sideActionBtnDisabled]}
+                    onPress={stopAndSave}
+                    activeOpacity={0.8}
+                    disabled={uploading}
+                  >
+                    <View style={[styles.sideBtnInner, styles.stopBtnInnerActiveShadow]}>
+                      <LinearGradient
+                        colors={['#0D9488', '#14B8A6']}
+                        start={{ x: 0.5, y: 0 }}
+                        end={{ x: 0.5, y: 1 }}
+                        style={[styles.sideBtnGradient, { width: sideBtnSize, height: sideBtnSize, borderRadius: 14 }]}
+                      >
+                        <Ionicons name="stop" size={28} color="#FFFFFF" />
+                      </LinearGradient>
+                    </View>
+                  </TouchableOpacity>
+                </View>
+                <Text style={[styles.controlsActionLabel, styles.controlsActionLabelSave]}>Save</Text>
+              </View>
+            </>
+          ) : (
+            <View style={styles.controlsMicOnlyCol}>
+              <TouchableOpacity
+                style={[styles.micBtnWrap, { width: micWrapSize, height: micWrapSize }, (isRecording || isPaused) && styles.micBtnWrapActive]}
+                onPress={handleMicPress}
+                activeOpacity={0.85}
+                disabled={uploading}
+              >
+                {uploading ? (
+                  <View style={[styles.micBtn, { width: micDiameter, height: micDiameter, borderRadius: micDiameter / 2 }]}>
+                    <ActivityIndicator size="small" color="#FFFFFF" />
+                  </View>
+                ) : (
+                  <LinearGradient
+                    colors={['#035BFA', '#4084FF', '#658FDB']}
+                    start={{ x: 0.5, y: 0 }}
+                    end={{ x: 0.5, y: 1 }}
+                    style={[
+                      styles.micBtn,
+                      { width: micDiameter, height: micDiameter, borderRadius: micDiameter / 2 },
+                    ]}
+                  >
+                    <Ionicons name="mic" size={Math.round(34 * idleRingScale)} color="#FFFFFF" />
+                  </LinearGradient>
+                )}
+              </TouchableOpacity>
+              <View style={styles.controlsLabelSpacer} />
             </View>
-            {hasRecording && <Text style={styles.stopBtnLabel}>Save</Text>}
-          </TouchableOpacity>
+          )}
         </View>
       </View>
     </View>
@@ -617,83 +725,89 @@ const styles = StyleSheet.create({
   },
   controls: {
     position: 'absolute',
-    left: 24,
-    right: 24,
+    left: 12,
+    right: 12,
     flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+  },
+  controlsButtonSlot: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  controlsMicOnlyRow: {
+    justifyContent: 'center',
+  },
+  controlsMicOnlyCol: {
+    alignItems: 'center',
+  },
+  controlsCol: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+  },
+  controlsColCenter: {
+    flex: 1,
+    minWidth: 0,
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+  },
+  controlsActionLabel: {
+    marginTop: 8,
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-medium',
+    fontWeight: '600',
+    fontSize: 12,
+    color: '#64748B',
+    letterSpacing: 0.2,
+  },
+  controlsActionLabelSave: {
+    color: '#0F766E',
+  },
+  controlsLabelSpacer: {
+    marginTop: 8,
+    height: 15,
+  },
+  sideActionBtn: {
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 32,
+  },
+  sideActionBtnDisabled: {
+    opacity: 0.55,
+  },
+  sideBtnInner: {
+    borderRadius: 14,
+    overflow: 'hidden',
+  },
+  cancelBtnInnerShadow: {
+    ...Platform.select({
+      ios: { shadowColor: 'rgba(220, 38, 38, 0.28)', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.35, shadowRadius: 6 },
+      android: { elevation: 4 },
+    }),
+  },
+  sideBtnGradient: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stopBtnInnerActiveShadow: {
+    ...Platform.select({
+      ios: { shadowColor: 'rgba(13, 148, 136, 0.4)', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.3, shadowRadius: 8 },
+      android: { elevation: 6 },
+    }),
+  },
+  stopBtnInnerIdleShadow: {
+    ...Platform.select({
+      ios: { shadowColor: 'rgba(13, 148, 136, 0.22)', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.35, shadowRadius: 6 },
+      android: { elevation: 3 },
+    }),
   },
   micBtnWrap: {
-    width: 156,
-    height: 156,
     alignItems: 'center',
     justifyContent: 'center',
   },
   micBtnWrapActive: {
     opacity: 1,
   },
-  stopBtn: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  stopBtnDisabled: {
-    opacity: 0.6,
-  },
-  stopBtnInner: {
-    width: 72,
-    height: 72,
-    borderRadius: 12,
-    backgroundColor: '#E0E0E0',
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...Platform.select({
-      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.15, shadowRadius: 4 },
-      android: { elevation: 4 },
-    }),
-  },
-  stopBtnInnerActive: {
-    backgroundColor: '#E53935',
-    ...Platform.select({
-      ios: { shadowColor: '#E53935', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.35, shadowRadius: 6 },
-      android: { elevation: 6 },
-    }),
-  },
-  stopBtnLabel: {
-    marginTop: 8,
-    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-medium',
-    fontWeight: '600',
-    fontSize: 13,
-    color: '#E53935',
-  },
-  micRing1: {
-    position: 'absolute',
-    width: 156,
-    height: 156,
-    borderRadius: 78,
-    borderWidth: 1,
-    borderColor: 'rgba(152, 16, 250, 0.1)',
-  },
-  micRing2: {
-    position: 'absolute',
-    width: 122,
-    height: 122,
-    borderRadius: 61,
-    borderWidth: 1,
-    borderColor: 'rgba(152, 16, 250, 0.25)',
-  },
-  micRing3: {
-    position: 'absolute',
-    width: 93,
-    height: 93,
-    borderRadius: 46.5,
-    borderWidth: 1,
-    borderColor: '#E9E8FF',
-  },
   micBtn: {
-    width: 76,
-    height: 76,
-    borderRadius: 38,
     alignItems: 'center',
     justifyContent: 'center',
   },
