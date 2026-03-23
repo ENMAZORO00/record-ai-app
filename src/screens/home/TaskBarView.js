@@ -13,6 +13,7 @@ import {
   RefreshControl,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import { getInformation, createInformation, deleteInformation } from '../../services/api';
@@ -32,7 +33,7 @@ function InfoNoteCard({ text, onDelete }) {
         activeOpacity={0.7}
         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
       >
-        <Ionicons name="trash-outline" size={20} color="#6A7282" />
+        <Ionicons name="trash-outline" size={20} color="#DC2626" />
       </TouchableOpacity>
     </View>
   );
@@ -116,17 +117,29 @@ export default function TaskBarView() {
 
   return (
     <View style={styles.container}>
-      {/* Header: Notes, plus */}
+      {/* Centered title + right-aligned Add note */}
       <View style={styles.header}>
-        <View style={styles.headerBtn} />
         <Text style={styles.headerTitle}>Notes</Text>
-        <TouchableOpacity
-          style={styles.addBtn}
-          activeOpacity={0.7}
-          onPress={() => setModalVisible(true)}
-        >
-          <Ionicons name="add" size={24} color={homeColors.accent} />
-        </TouchableOpacity>
+        <View style={styles.headerAddRow}>
+          <View style={styles.addBtnShadow}>
+            <TouchableOpacity
+              activeOpacity={0.88}
+              onPress={() => setModalVisible(true)}
+              accessibilityRole="button"
+              accessibilityLabel="Add notes"
+            >
+              <LinearGradient
+                colors={[homeColors.accent, homeColors.accentMuted]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.addBtnGradient}
+              >
+                <Ionicons name="add" size={20} color="#FFFFFF" />
+                <Text style={styles.addBtnLabel}>Add note</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
+        </View>
       </View>
 
       {/* Content */}
@@ -156,7 +169,9 @@ export default function TaskBarView() {
           ) : (
             <View style={styles.cardList}>
               {infoNotes.length === 0 ? (
-                <Text style={styles.emptyText}>No information notes yet. Add one with the + button.</Text>
+                <Text style={styles.emptyText}>
+                  No information notes yet. Tap Add note to create one.
+                </Text>
               ) : (
                 infoNotes.map((item) => (
                   <InfoNoteCard
@@ -192,7 +207,7 @@ export default function TaskBarView() {
               onPress={(e) => e.stopPropagation()}
               style={styles.modalContent}
             >
-              <Text style={styles.modalTitle}>Add Information</Text>
+              <Text style={styles.modalTitle}>Add Notes</Text>
               <TextInput
                 style={styles.modalInput}
                 placeholder="Describe your information..."
@@ -287,34 +302,55 @@ const styles = StyleSheet.create({
     backgroundColor: '#FAFBFD',
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
     paddingHorizontal: 25,
-    paddingVertical: 12,
     paddingTop: 8,
-  },
-  headerBtn: {
-    width: 24,
-    height: 24,
-    justifyContent: 'center',
-    alignItems: 'center',
+    paddingBottom: 16,
+    gap: 12,
   },
   headerTitle: {
+    width: '100%',
+    textAlign: 'center',
     fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-medium',
     fontWeight: '600',
     fontSize: 18,
     lineHeight: 22,
     color: '#000000',
   },
-  addBtn: {
-    width: 38,
-    height: 38,
-    justifyContent: 'center',
+  headerAddRow: {
+    width: '100%',
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+  },
+  addBtnShadow: {
+    borderRadius: 22,
+    overflow: 'hidden',
+    ...Platform.select({
+      ios: {
+        shadowColor: homeColors.accent,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.28,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 5,
+      },
+    }),
+  },
+  addBtnGradient: {
+    flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: 19,
-    borderWidth: 1.5,
-    borderColor: homeColors.accent,
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 22,
+  },
+  addBtnLabel: {
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-medium',
+    fontWeight: '600',
+    fontSize: 14,
+    letterSpacing: -0.2,
+    color: '#FFFFFF',
   },
   scroll: {
     flex: 1,
