@@ -300,7 +300,7 @@ export default function HomeScreen() {
         ) : TABS[scrollPageIndex]?.id === 'transcript' ? (
           <>
             <View style={styles.hamburgerBtn} />
-            <Text style={styles.transcriptHeaderTitle}>Transcript</Text>
+            {/* <Text style={styles.transcriptHeaderTitle}>Transcript</Text> */}
             <View style={styles.hamburgerBtn} />
           </>
         ) : (
@@ -576,13 +576,13 @@ const styles = StyleSheet.create({
   hamburgerBtn: {
     padding: 4,
   },
-  transcriptHeaderTitle: {
-    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
-    fontWeight: '600',
-    fontSize: 18,
-    lineHeight: 22,
-    color: '#000000',
-  },
+  // transcriptHeaderTitle: {
+  //   fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
+  //   fontWeight: '600',
+  //   fontSize: 18,
+  //   lineHeight: 22,
+  //   color: '#000000',
+  // },
   content: {
     flex: 1,
     ...Platform.select({ web: { minHeight: 0 } }),

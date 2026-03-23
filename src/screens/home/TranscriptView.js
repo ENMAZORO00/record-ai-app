@@ -75,11 +75,11 @@ function TranscriptCard({ item, onPress }) {
         <View style={styles.cardMeta}>
           <View style={styles.cardMetaLeft}>
             <View style={styles.metaItem}>
-              <Ionicons name="calendar" size={16} color="#6B7280" />
+              <Ionicons name="calendar" size={16} color="#2563eb" />
               <Text style={styles.metaText} numberOfLines={1} ellipsizeMode="tail">{dateStr}</Text>
             </View>
             <View style={styles.metaItem}>
-              <Ionicons name="time" size={16} color="#6B7280" />
+              <Ionicons name="time" size={16} color="#16a34a" />
               <Text style={styles.metaText}>{timeStr}</Text>
             </View>
           </View>
