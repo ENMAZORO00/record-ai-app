@@ -32,6 +32,8 @@ export default function ForgotPasswordScreen({ navigation }) {
   return (
     <AuthLayout
       title="Forgot password?"
+      titleFontWeight="700"
+      titleBottomMargin={32}
       subtitle="Enter the email linked to your account. We'll send you a verification code to reset your password."
       showCardBack
       onCardBack={() => navigation.replace('Login')}
@@ -40,9 +42,8 @@ export default function ForgotPasswordScreen({ navigation }) {
         label="Email Address"
         value={email}
         onChangeText={(t) => { setEmail(t); setError(''); }}
-        placeholder="you@example.com"
+        placeholder="Email Address"
         keyboardType="email-address"
-        autoCapitalize="none"
         leftIcon="mail-outline"
       />
 
@@ -52,7 +53,7 @@ export default function ForgotPasswordScreen({ navigation }) {
         title="Send Reset Code"
         onPress={handleSubmit}
         loading={loading}
-        icon="send-outline"
+        primaryStyle="solid"
       />
     </AuthLayout>
   );
@@ -61,7 +62,7 @@ export default function ForgotPasswordScreen({ navigation }) {
 const styles = StyleSheet.create({
   errorText: {
     fontSize: 14,
-    color: authColors.error,
+    color: authColors.textSecondary,
     marginBottom: 16,
   },
 });
