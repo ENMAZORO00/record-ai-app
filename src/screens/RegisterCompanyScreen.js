@@ -6,6 +6,7 @@ import AuthButton from '../components/AuthButton';
 import { registerCompany, authApi } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { authColors } from '../theme/authColors';
+import { isCompanyPendingVerification } from '../utils/companyVerification';
 
 export default function RegisterCompanyScreen({ navigation, route }) {
   const fromLogin = route?.params?.fromLogin === true;
@@ -71,7 +72,16 @@ export default function RegisterCompanyScreen({ navigation, route }) {
       if (data.user) {
         updateUser(data.user);
       }
-      navigation.reset({ index: 0, routes: [{ name: 'Home' }] });
+      navigation.reset({
+        index: 0,
+        routes: [
+          {
+            name: isCompanyPendingVerification(data.user)
+              ? 'CompanyPendingVerification'
+              : 'Home',
+          },
+        ],
+      });
     } catch (err) {
       setError(err?.message || 'Failed to register company');
     } finally {

@@ -10,6 +10,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
+import { isCompanyPendingVerification } from '../utils/companyVerification';
 import LogoIcon from '../components/LogoIcon';
 import GradientText from '../components/GradientText';
 
@@ -28,13 +29,21 @@ const colors = {
 
 const PROGRESS_BAR_WIDTH = Math.min(240, width - 80);
 
+function nextRouteName(isAuthenticated, user) {
+  if (!isAuthenticated) return 'Login';
+  if (isCompanyPendingVerification(user)) return 'CompanyPendingVerification';
+  return 'Home';
+}
+
 export default function SplashScreen({ navigation }) {
-  const { isAuthenticated, loading } = useAuth();
+  const { isAuthenticated, loading, user } = useAuth();
   const loadingRef = useRef(loading);
   const authRef = useRef(isAuthenticated);
+  const userRef = useRef(user);
   const splashMinRef = useRef(false);
   loadingRef.current = loading;
   authRef.current = isAuthenticated;
+  userRef.current = user;
 
   const [phase, setPhase] = useState(1); // 1 = new splash, 2 = original splash
   const [percent, setPercent] = useState(0);
@@ -81,7 +90,7 @@ export default function SplashScreen({ navigation }) {
     const navTimer = setTimeout(() => {
       splashMinRef.current = true;
       if (!loadingRef.current) {
-        navigation.replace(authRef.current ? 'Home' : 'Login');
+        navigation.replace(nextRouteName(authRef.current, userRef.current));
       }
     }, 2500);
 
@@ -93,9 +102,9 @@ export default function SplashScreen({ navigation }) {
 
   useEffect(() => {
     if (!loading && splashMinRef.current) {
-      navigation.replace(isAuthenticated ? 'Home' : 'Login');
+      navigation.replace(nextRouteName(isAuthenticated, user));
     }
-  }, [loading, isAuthenticated, navigation]);
+  }, [loading, isAuthenticated, user, navigation]);
 
   const progressWidth = progressAnim.interpolate({
     inputRange: [0, 1],

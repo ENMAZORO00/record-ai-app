@@ -56,7 +56,14 @@ export default function LoginScreen({ navigation, route }) {
       await signIn(data.user, data.token);
       goAfterAuth();
     } catch (err) {
-      setError(err.message || "Invalid email or password");
+      if (err?.code === "COMPANY_PENDING_VERIFICATION") {
+        setError(
+          err.message ||
+            "Your company is pending verification. Try again after an administrator approves it."
+        );
+      } else {
+        setError(err.message || "Invalid email or password");
+      }
     } finally {
       setLoading(false);
     }

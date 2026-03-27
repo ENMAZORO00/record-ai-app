@@ -10,6 +10,7 @@ import LoginScreen from '../screens/LoginScreen';
 import ForgotPasswordScreen from '../screens/ForgotPasswordScreen';
 import ResetPasswordScreen from '../screens/ResetPasswordScreen';
 import RegisterCompanyScreen from '../screens/RegisterCompanyScreen';
+import CompanyPendingVerificationScreen from '../screens/CompanyPendingVerificationScreen';
 import AcceptInviteScreen from '../screens/AcceptInviteScreen';
 import TeamScreen from '../screens/TeamScreen';
 import InviteMembersScreen from '../screens/InviteMembersScreen';
@@ -42,6 +43,7 @@ export default function RootStack() {
         <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
         <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
         <Stack.Screen name="RegisterCompany" component={RegisterCompanyScreen} />
+        <Stack.Screen name="CompanyPendingVerification" component={CompanyPendingVerificationScreen} />
         <Stack.Screen name="AcceptInvite" component={AcceptInviteScreen} />
         <Stack.Screen name="Team" component={TeamScreen} />
         <Stack.Screen name="InviteMembers" component={InviteMembersScreen} />
