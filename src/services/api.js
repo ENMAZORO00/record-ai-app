@@ -16,6 +16,7 @@ const handleResponse = async (res) => {
     const err = new Error(data?.error || 'Request failed');
     err.status = res.status;
     err.data = data;
+    if (data?.code) err.code = data.code;
     throw err;
   }
   return data;

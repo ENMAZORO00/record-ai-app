@@ -4,6 +4,7 @@ import AuthLayout from '../components/AuthLayout';
 import AuthButton from '../components/AuthButton';
 import { getInviteByToken, joinCompany } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { isCompanyPendingVerification } from '../utils/companyVerification';
 
 export default function AcceptInviteScreen({ navigation, route }) {
   const inviteToken = route?.params?.inviteToken ?? '';
@@ -38,7 +39,16 @@ export default function AcceptInviteScreen({ navigation, route }) {
         updateUser(data.user);
         signIn(data.user, token);
       }
-      navigation.reset({ index: 0, routes: [{ name: 'Home' }] });
+      navigation.reset({
+        index: 0,
+        routes: [
+          {
+            name: isCompanyPendingVerification(data.user)
+              ? 'CompanyPendingVerification'
+              : 'Home',
+          },
+        ],
+      });
     } catch (err) {
       setError(err?.message || 'Failed to join');
     } finally {
