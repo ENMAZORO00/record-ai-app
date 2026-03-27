@@ -6,6 +6,7 @@ import AuthButton from '../components/AuthButton';
 import { authApi, registerCompany } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { authColors } from '../theme/authColors';
+import { isCompanyPendingVerification } from '../utils/companyVerification';
 
 export default function VerifyOTPScreen({ navigation, route }) {
   const { signIn, updateUser } = useAuth();
@@ -42,8 +43,20 @@ export default function VerifyOTPScreen({ navigation, route }) {
             updateUser(companyData.user);
             await signIn(companyData.user, data.token);
           }
+          navigation.reset({
+            index: 0,
+            routes: [
+              {
+                name: isCompanyPendingVerification(companyData.user)
+                  ? 'CompanyPendingVerification'
+                  : 'Home',
+              },
+            ],
+          });
+          return;
         } catch (e) {
-          console.warn('Company registration after verify:', e);
+          setError(e?.message || 'Could not register company');
+          return;
         }
       }
       navigation.reset({ index: 0, routes: [{ name: 'Home' }] });
