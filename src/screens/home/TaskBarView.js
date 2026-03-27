@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,7 @@ import {
   KeyboardAvoidingView,
   ActivityIndicator,
   RefreshControl,
+  useWindowDimensions,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -19,19 +20,76 @@ import { useAuth } from '../../context/AuthContext';
 import { getInformation, createInformation, deleteInformation } from '../../services/api';
 import { homeColors } from '../../theme/homeColors';
 
-// Information note card (green dot, delete button)
-function InfoNoteCard({ text, onDelete }) {
+const LIST_PREVIEW_MAX_CHARS = 100;
+
+function truncateChars(s, max) {
+  const t = (s || '').trim();
+  if (t.length <= max) return t;
+  return `${t.slice(0, Math.max(0, max - 1))}…`;
+}
+
+function getDisplayTitle(note) {
+  if (note.title && String(note.title).trim()) return String(note.title).trim();
+  const first = (note.text || '').split('\n')[0]?.trim() || '';
+  if (first) return truncateChars(first, 72);
+  return 'Note';
+}
+
+function getPreviewPlain(note) {
+  const t = (note.text || '').replace(/\s+/g, ' ').trim();
+  return truncateChars(t, LIST_PREVIEW_MAX_CHARS);
+}
+
+/** Full title for detail modal (no list preview truncation). */
+function getDetailTitle(note) {
+  if (note.title && String(note.title).trim()) return String(note.title).trim();
+  const first = (note.text || '').split('\n')[0]?.trim() || '';
+  if (first) return first;
+  return 'Note';
+}
+
+/** @param {{ bullets?: unknown, text?: string }} note */
+function getBulletLines(note) {
+  if (Array.isArray(note.bullets) && note.bullets.length > 0) {
+    return note.bullets
+      .filter((b) => typeof b === 'string' && b.trim())
+      .map((b) => b.trim());
+  }
+  const raw = (note.text || '').trim();
+  if (!raw) return [];
+  return raw
+    .split(/\n+/)
+    .map((line) => line.replace(/^[-•*]\s*/, '').trim())
+    .filter(Boolean);
+}
+
+// Information note card: title + fixed-length preview; tap opens detail (delete is separate)
+function InfoNoteCard({ title, preview, onPress, onDelete }) {
   return (
     <View style={[styles.taskCard, styles.infoNoteCard]}>
-      <View style={styles.infoDot} />
-      <Text style={styles.taskText} numberOfLines={2}>
-        {text}
-      </Text>
+      <TouchableOpacity
+        style={styles.infoCardPressable}
+        onPress={onPress}
+        activeOpacity={0.75}
+        accessibilityRole="button"
+        accessibilityLabel={`Open note: ${title}`}
+      >
+        <View style={styles.infoDot} />
+        <View style={styles.infoCardTextCol}>
+          <Text style={styles.noteTitle} numberOfLines={1}>
+            {title}
+          </Text>
+          <Text style={styles.notePreview} numberOfLines={2}>
+            {preview}
+          </Text>
+        </View>
+      </TouchableOpacity>
       <TouchableOpacity
         style={styles.deleteBtn}
         onPress={onDelete}
         activeOpacity={0.7}
         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        accessibilityLabel="Delete note"
       >
         <Ionicons name="trash-outline" size={20} color="#DC2626" />
       </TouchableOpacity>
@@ -39,7 +97,12 @@ function InfoNoteCard({ text, onDelete }) {
   );
 }
 
+const DETAIL_MODAL_MAX_HEIGHT_RATIO = 0.7;
+/** Top + bottom padding on the white card (detailModalContent + merged modalContent). */
+const DETAIL_CARD_VERTICAL_INSET = 32;
+
 export default function TaskBarView() {
+  const { height: windowHeight } = useWindowDimensions();
   const { token } = useAuth();
   const [infoNotes, setInfoNotes] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -51,6 +114,23 @@ export default function TaskBarView() {
   const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
   const [noteToDelete, setNoteToDelete] = useState(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [detailNote, setDetailNote] = useState(null);
+  const [detailContentHeight, setDetailContentHeight] = useState(0);
+
+  const detailModalMaxHeight = windowHeight * DETAIL_MODAL_MAX_HEIGHT_RATIO;
+  const detailScrollViewportMax = Math.max(
+    0,
+    detailModalMaxHeight - DETAIL_CARD_VERTICAL_INSET
+  );
+  const detailNeedsScroll = detailContentHeight > detailScrollViewportMax;
+  const detailCardHeight =
+    detailContentHeight > 0
+      ? Math.min(detailContentHeight + DETAIL_CARD_VERTICAL_INSET, detailModalMaxHeight)
+      : undefined;
+
+  useEffect(() => {
+    setDetailContentHeight(0);
+  }, [detailNote?.id]);
 
   const fetchInfoNotes = useCallback(async (showRefreshing = false) => {
     if (!token) return;
@@ -106,6 +186,7 @@ export default function TaskBarView() {
     try {
       await deleteInformation(token, noteToDelete);
       setInfoNotes((prev) => prev.filter((item) => item.id !== noteToDelete));
+      setDetailNote((n) => (n && n.id === noteToDelete ? null : n));
       setDeleteConfirmVisible(false);
       setNoteToDelete(null);
     } catch (err) {
@@ -176,7 +257,9 @@ export default function TaskBarView() {
                 infoNotes.map((item) => (
                   <InfoNoteCard
                     key={item.id}
-                    text={item.text}
+                    title={getDisplayTitle(item)}
+                    preview={getPreviewPlain(item)}
+                    onPress={() => setDetailNote(item)}
                     onDelete={() => handleDeletePress(item.id)}
                   />
                 ))
@@ -243,6 +326,67 @@ export default function TaskBarView() {
               </View>
             </TouchableOpacity>
           </KeyboardAvoidingView>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* Note detail — height follows content up to 70% of window, then scrolls */}
+      <Modal
+        visible={!!detailNote}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setDetailNote(null)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setDetailNote(null)}
+        >
+          <View style={[styles.modalContainer, styles.detailModalVerticalPad]}>
+            <TouchableOpacity
+              activeOpacity={1}
+              onPress={(e) => e.stopPropagation()}
+              style={[
+                styles.modalContent,
+                styles.detailModalContent,
+                { maxHeight: detailModalMaxHeight },
+                detailCardHeight != null && { height: detailCardHeight },
+                detailContentHeight === 0 && detailNote && { minHeight: 100 },
+              ]}
+            >
+              <ScrollView
+                style={styles.detailScrollFlex}
+                contentContainerStyle={styles.detailScrollContent}
+                showsVerticalScrollIndicator={detailNeedsScroll}
+                scrollEnabled={detailNeedsScroll}
+                keyboardShouldPersistTaps="handled"
+                bounces={detailNeedsScroll}
+                onContentSizeChange={(_, h) => setDetailContentHeight(h)}
+              >
+                <View style={styles.detailModalHeader}>
+                  <Text style={styles.detailModalTitle}>
+                    {detailNote ? getDetailTitle(detailNote) : ''}
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => setDetailNote(null)}
+                    style={styles.detailCloseBtn}
+                    hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                    accessibilityLabel="Close"
+                  >
+                    <Ionicons name="close" size={26} color="#6A7282" />
+                  </TouchableOpacity>
+                </View>
+                {(detailNote ? getBulletLines(detailNote) : []).map((line, idx) => (
+                  <View key={`${idx}-${line.slice(0, 24)}`} style={styles.bulletRow}>
+                    <Text style={styles.bulletGlyph}>•</Text>
+                    <Text style={styles.bulletText}>{line}</Text>
+                  </View>
+                ))}
+                {detailNote && getBulletLines(detailNote).length === 0 ? (
+                  <Text style={styles.bulletTextMuted}>No content.</Text>
+                ) : null}
+              </ScrollView>
+            </TouchableOpacity>
+          </View>
         </TouchableOpacity>
       </Modal>
 
@@ -428,7 +572,35 @@ const styles = StyleSheet.create({
     }),
   },
   infoNoteCard: {
-    paddingLeft: 20,
+    paddingLeft: 14,
+    paddingVertical: 16,
+    alignItems: 'stretch',
+  },
+  infoCardPressable: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    minWidth: 0,
+  },
+  infoCardTextCol: {
+    flex: 1,
+    minWidth: 0,
+    gap: 4,
+  },
+  noteTitle: {
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-medium',
+    fontWeight: '700',
+    fontSize: 15,
+    lineHeight: 20,
+    color: '#111827',
+  },
+  notePreview: {
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
+    fontWeight: '400',
+    fontSize: 13,
+    lineHeight: 18,
+    color: '#6A7282',
   },
   infoDot: {
     width: 10,
@@ -436,13 +608,67 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     backgroundColor: '#13A10E',
   },
-  taskText: {
+  detailModalVerticalPad: {
+    paddingVertical: 28,
+  },
+  detailModalContent: {
+    paddingTop: 16,
+    paddingBottom: 16,
+    overflow: 'hidden',
+  },
+  detailModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 12,
+    marginBottom: 12,
+  },
+  detailModalTitle: {
     flex: 1,
+    minWidth: 0,
     fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-medium',
-    fontWeight: '600',
-    fontSize: 14,
+    fontWeight: '700',
+    fontSize: 17,
     lineHeight: 22,
-    color: '#000000',
+    color: '#111827',
+    letterSpacing: -0.3,
+  },
+  detailCloseBtn: {
+    padding: 4,
+    marginTop: -4,
+  },
+  detailScrollFlex: {
+    flex: 1,
+  },
+  detailScrollContent: {
+    paddingBottom: 8,
+    paddingHorizontal: 4,
+    gap: 10,
+  },
+  bulletRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+  },
+  bulletGlyph: {
+    fontSize: 16,
+    lineHeight: 22,
+    color: homeColors.accent,
+    marginTop: 1,
+    width: 14,
+    textAlign: 'center',
+  },
+  bulletText: {
+    flex: 1,
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
+    fontSize: 15,
+    lineHeight: 22,
+    color: '#374151',
+  },
+  bulletTextMuted: {
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
+    fontSize: 14,
+    color: '#9CA3AF',
   },
   deleteBtn: {
     width: 36,
