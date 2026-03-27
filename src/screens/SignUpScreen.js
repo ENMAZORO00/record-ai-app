@@ -96,7 +96,6 @@ export default function SignUpScreen({ navigation, route }) {
           placeholder="Full Name"
           autoCapitalize="words"
           leftIcon="person-outline"
-          compact
         />
         <AuthInput
           label="Email Address"
@@ -108,7 +107,6 @@ export default function SignUpScreen({ navigation, route }) {
           placeholder="Email Address"
           keyboardType="email-address"
           leftIcon="mail-outline"
-          compact
         />
         <AuthInput
           label="Password"
@@ -120,7 +118,6 @@ export default function SignUpScreen({ navigation, route }) {
           placeholder="Password"
           secureTextEntry
           leftIcon="lock-closed-outline"
-          compact
         />
 
         {error ? <Text style={styles.errorText}>{error}</Text> : null}

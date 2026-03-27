@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import AuthLayout from '../components/AuthLayout';
 import AuthInput from '../components/AuthInput';
 import AuthButton from '../components/AuthButton';
@@ -92,12 +92,16 @@ export default function RegisterCompanyScreen({ navigation, route }) {
   const isFromLoginFlow = fromLogin || !token;
 
   return (
-    <AuthLayout title="Register your company" titleFontWeight="400" titleBottomMargin={24}>
+    <AuthLayout
+      title="Register your company"
+      titleFontWeight="700"
+      titleBottomMargin={32}
+    >
       <AuthInput
         label="Company name"
         value={companyName}
         onChangeText={(t) => { setCompanyName(t); setError(''); }}
-        placeholder="e.g. Acme Inc"
+        placeholder="Company name"
         leftIcon="business-outline"
       />
       {isFromLoginFlow && (
@@ -106,7 +110,7 @@ export default function RegisterCompanyScreen({ navigation, route }) {
             label="Admin email"
             value={adminEmail}
             onChangeText={(t) => { setAdminEmail(t); setError(''); }}
-            placeholder="you@company.com"
+            placeholder="Admin email"
             keyboardType="email-address"
             leftIcon="mail-outline"
           />
@@ -121,7 +125,7 @@ export default function RegisterCompanyScreen({ navigation, route }) {
             label="Password"
             value={password}
             onChangeText={(t) => { setPassword(t); setError(''); }}
-            placeholder="At least 6 characters"
+            placeholder="Password"
             secureTextEntry
             leftIcon="lock-closed-outline"
           />
@@ -132,16 +136,18 @@ export default function RegisterCompanyScreen({ navigation, route }) {
         title={isFromLoginFlow ? 'Continue' : 'Create company'}
         onPress={isFromLoginFlow ? handleRegisterFromLogin : handleRegisterExistingUser}
         loading={loading}
-        style={styles.submitBtn}
+        primaryStyle="solid"
       />
       {isFromLoginFlow ? (
-        <TouchableOpacity
-          style={styles.secondaryLink}
-          onPress={() => navigation.navigate('Login')}
-          disabled={loading}
-        >
-          <Text style={styles.secondaryText}>Already have an account? Log in</Text>
-        </TouchableOpacity>
+        <View style={styles.footer}>
+          <Text style={styles.footerText}>Already have an account? </Text>
+          <TouchableOpacity
+            onPress={() => navigation.navigate('Login')}
+            disabled={loading}
+          >
+            <Text style={styles.link}>Log in</Text>
+          </TouchableOpacity>
+        </View>
       ) : (
         <TouchableOpacity
           style={styles.skipLink}
@@ -157,13 +163,23 @@ export default function RegisterCompanyScreen({ navigation, route }) {
 
 const styles = StyleSheet.create({
   errorText: {
-    color: authColors.error,
     fontSize: 14,
-    marginBottom: 12,
+    color: authColors.textSecondary,
+    marginBottom: 16,
   },
-  submitBtn: { marginTop: 8 },
-  skipLink: { marginTop: 24, alignSelf: 'center' },
-  skipText: { color: authColors.primary, fontSize: 14 },
-  secondaryLink: { marginTop: 24, alignSelf: 'center' },
-  secondaryText: { color: authColors.primary, fontSize: 14 },
+  footer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 28,
+    paddingVertical: 12,
+  },
+  footerText: { fontSize: 15, color: authColors.textSecondary },
+  link: { fontSize: 15, fontWeight: '600', color: authColors.textPrimary },
+  skipLink: {
+    marginTop: 28,
+    alignSelf: 'center',
+    paddingVertical: 12,
+  },
+  skipText: { fontSize: 15, fontWeight: '600', color: authColors.textPrimary },
 });
