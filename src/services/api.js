@@ -222,7 +222,7 @@ export async function deleteChat(token, id) {
 /**
  * Get list of information notes for the current user.
  * @param {string} token - Auth token
- * @returns {Promise<Array<{ id, text, createdAt }>>}
+ * @returns {Promise<Array<{ id, title?, text, bullets?, transcriptId?, createdAt }>>}
  */
 export async function getInformation(token) {
   const res = await fetch(`${getBaseUrl()}/information`, {
@@ -236,8 +236,8 @@ export async function getInformation(token) {
 /**
  * Create an information note.
  * @param {string} token - Auth token
- * @param {object} body - { text }
- * @returns {Promise<{ id, text, createdAt }>}
+ * @param {object} body - { text, title?: string, bullets?: string[] }
+ * @returns {Promise<{ id, title?, text, bullets?, createdAt }>}
  */
 export async function createInformation(token, body) {
   const res = await fetch(`${getBaseUrl()}/information`, {
