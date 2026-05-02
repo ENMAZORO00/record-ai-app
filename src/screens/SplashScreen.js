@@ -28,6 +28,7 @@ const colors = {
 };
 
 const PROGRESS_BAR_WIDTH = Math.min(240, width - 80);
+const SPLASH_MAX_WAIT_MS = 9000;
 
 function nextRouteName(isAuthenticated, user) {
   if (!isAuthenticated) return 'Login';
@@ -41,6 +42,7 @@ export default function SplashScreen({ navigation }) {
   const authRef = useRef(isAuthenticated);
   const userRef = useRef(user);
   const splashMinRef = useRef(false);
+  const navigatedRef = useRef(false);
   loadingRef.current = loading;
   authRef.current = isAuthenticated;
   userRef.current = user;
@@ -87,21 +89,33 @@ export default function SplashScreen({ navigation }) {
       useNativeDriver: false,
     }).start();
 
+    const navigateOnce = () => {
+      if (navigatedRef.current) return;
+      navigatedRef.current = true;
+      navigation.replace(nextRouteName(authRef.current, userRef.current));
+    };
+
     const navTimer = setTimeout(() => {
       splashMinRef.current = true;
       if (!loadingRef.current) {
-        navigation.replace(nextRouteName(authRef.current, userRef.current));
+        navigateOnce();
       }
     }, 2500);
+    const failsafeTimer = setTimeout(() => {
+      splashMinRef.current = true;
+      navigateOnce();
+    }, SPLASH_MAX_WAIT_MS);
 
     return () => {
       clearTimeout(navTimer);
+      clearTimeout(failsafeTimer);
       progressAnim.removeListener(listenerId);
     };
   }, [phase, progressAnim, navigation]);
 
   useEffect(() => {
-    if (!loading && splashMinRef.current) {
+    if (!loading && splashMinRef.current && !navigatedRef.current) {
+      navigatedRef.current = true;
       navigation.replace(nextRouteName(isAuthenticated, user));
     }
   }, [loading, isAuthenticated, user, navigation]);

@@ -457,11 +457,24 @@ export async function createMeeting(token, participantUserIds) {
 }
 
 /** GET /auth/me — current user with company (auth). */
-export async function getAuthMe(token) {
-  const res = await fetch(`${getBaseUrl()}/auth/me`, { headers: { Authorization: `Bearer ${token}` } });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data?.error || 'Failed to load user');
-  return data;
+export async function getAuthMe(token, options = {}) {
+  const timeoutMs = Number.isFinite(options.timeoutMs) ? options.timeoutMs : 10000;
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(`${getBaseUrl()}/auth/me`, {
+      headers: { Authorization: `Bearer ${token}` },
+      signal: controller.signal,
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.error || 'Failed to load user');
+    return data;
+  } catch (err) {
+    if (err.name === 'AbortError') throw new Error('Loading user timed out');
+    throw err;
+  } finally {
+    clearTimeout(timeoutId);
+  }
 }
 
 export const authApi = {
