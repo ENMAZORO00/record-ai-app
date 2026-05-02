@@ -5,6 +5,7 @@ import { authApi, getAuthMe } from '../services/api';
 
 const TOKEN_KEY = '@notes_token';
 const USER_KEY = '@notes_user';
+const STARTUP_AUTH_TIMEOUT_MS = 8000;
 
 const AuthContext = createContext(null);
 
@@ -17,12 +18,21 @@ export function AuthProvider({ children }) {
     loadStoredAuth();
   }, []);
 
+  const startupLog = (...args) => {
+    if (__DEV__) {
+      // Helps diagnose startup hangs in development builds.
+      console.log('[AuthStartup]', ...args);
+    }
+  };
+
   const loadStoredAuth = async () => {
     try {
+      startupLog('storage read: start');
       const [storedToken, storedUser] = await Promise.all([
         AsyncStorage.getItem(TOKEN_KEY),
         AsyncStorage.getItem(USER_KEY),
       ]);
+      startupLog('storage read: done', { hasToken: !!storedToken, hasUser: !!storedUser });
       if (storedToken && storedUser) {
         setToken(storedToken);
         let parsedUser = null;
@@ -34,19 +44,24 @@ export function AuthProvider({ children }) {
         }
         if (parsedUser) {
           try {
-            const { user: fresh } = await getAuthMe(storedToken);
+            startupLog('/auth/me: start');
+            const { user: fresh } = await getAuthMe(storedToken, { timeoutMs: STARTUP_AUTH_TIMEOUT_MS });
+            startupLog('/auth/me: success');
             if (fresh) {
               setUser(fresh);
               await AsyncStorage.setItem(USER_KEY, JSON.stringify(fresh));
             }
-          } catch (_) {
+          } catch (e) {
+            startupLog('/auth/me: fallback', e?.message || 'failed');
             // keep stored user on refresh failure
           }
         }
       }
     } catch (e) {
+      startupLog('storage/auth restore error', e?.message || 'unknown');
       // ignore
     } finally {
+      startupLog('loading complete');
       setLoading(false);
     }
   };
